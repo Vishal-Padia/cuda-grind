@@ -1,11 +1,11 @@
-#include <iostream.h>
+#include <iostream>
 #include <math.h>
 
 // function to add the elements of two arrays
 void add(int n, float *x, float *y)
 {
   for (int i = 0; i < n; i++)
-    y[i] = x[i] + y[i]
+    y[i] = x[i] + y[i];
 }
 
 int main(void)
@@ -26,7 +26,7 @@ int main(void)
 
   // check for errors (all values should be 3.0f)
   float maxError = 0.0f;
-  for int(int i = 0; i < N; i++)
+  for (int i = 0; i < N; i++)
     maxError = fmax(maxError, fabs(y[i]-3.0f));
   std::cout << "Max Error: " << maxError << std::endl;
 
