@@ -1,0 +1,217 @@
+from ast import For
+import torch
+import triton
+import triton.language as tl
+
+DEVICE = "cuda:0"
+
+@triton.jit
+def multiply_kernel(
+    x_ptr,
+    y_ptr,
+    output_ptr,
+    n_elements,
+    x_stride,
+    y_stride,
+    output_stride,
+    BLOCK_SIZE: tl.constexpr,
+):
+    # get the current thread index
+    pid = tl.program_id(axis=0)
+    block_start = pid * BLOCK_SIZE
+
+    offsets = block_start + tl.arange(0, BLOCK_SIZE)
+
+    mask = offsets < n_elements
+
+    # use strides for proper memory addressing
+    x_offsets = offsets * x_stride
+    y_offsets = offsets * y_stride
+    output_offsets = offsets * output_stride
+
+    x = tl.load(x_ptr + x_offsets, mask=mask)
+    y = tl.load(y_ptr + y_offsets, mask=mask)
+
+    output = x * y
+    
+    tl.store(output_ptr + output_offsets, output, mask=mask)
+
+def multiply(x, y):
+    output = torch.empty_like(x)
+
+    n_elements = output.numel()
+
+    # get strides
+    x_stride = x.stride(-1) if x.numel() > 0 else 1
+    y_stride = y.stride(-1) if y.numel() > 0 else 1
+    output_stride = output.stride(-1) if output.numel() > 0 else 1
+
+    def grid(meta): return (triton.cdiv(n_elements, meta['BLOCK_SIZE']), )
+
+    multiply_kernel[grid](x, y, output, n_elements, x_stride, y_stride, output_stride, BLOCK_SIZE=1024)
+    return output
+
+def test_mixed_strides():
+    """Test various stride patterns to validate kernel robustness"""
+    
+    print("=== Testing Mixed Strides ===")
+    # Test 1: Contiguous tensors (baseline)
+    print("\n1. Contiguous tensors:")
+    size = 1024
+    x_cont = torch.rand(size, device=DEVICE)
+    y_cont = torch.rand(size, device=DEVICE)
+    
+    result_triton = multiply(x_cont, y_cont)
+    result_torch = x_cont * y_cont
+    
+    print(f"x stride: {x_cont.stride()}, y stride: {y_cont.stride()}")
+    print(f"Max diff: {torch.max(torch.abs(result_triton - result_torch))}")
+    assert torch.allclose(result_triton, result_torch, atol=1e-6)
+    
+    # Test 2: Strided tensors (every 2nd element)
+    print("\n2. Strided tensors (every 2nd element):")
+    base_size = 2048
+    x_base = torch.rand(base_size, device=DEVICE)
+    y_base = torch.rand(base_size, device=DEVICE)
+    
+    # Take every 2nd element - creates stride of 2
+    x_strided = x_base[::2]
+    y_strided = y_base[::2]
+    
+    result_triton = multiply(x_strided, y_strided)
+    result_torch = x_strided * y_strided
+    
+    print(f"x stride: {x_strided.stride()}, y stride: {y_strided.stride()}")
+    print(f"Max diff: {torch.max(torch.abs(result_triton - result_torch))}")
+    assert torch.allclose(result_triton, result_torch, atol=1e-6)
+    
+    # Test 3: Different strides for x and y
+    print("\n3. Mixed strides (x: every 2nd, y: every 3rd):")
+    base_size = 3000
+    x_base = torch.rand(base_size, device=DEVICE)
+    y_base = torch.rand(base_size, device=DEVICE)
+    
+    x_mixed = x_base[::2]  # stride 2
+    y_mixed = y_base[::3]  # stride 3
+    
+    # Need to match sizes for element-wise ops
+    min_size = min(len(x_mixed), len(y_mixed))
+    x_mixed = x_mixed[:min_size]
+    y_mixed = y_mixed[:min_size]
+    
+    result_triton = multiply(x_mixed, y_mixed)
+    result_torch = x_mixed * y_mixed
+    
+    print(f"x stride: {x_mixed.stride()}, y stride: {y_mixed.stride()}")
+    print(f"Max diff: {torch.max(torch.abs(result_triton - result_torch))}")
+    assert torch.allclose(result_triton, result_torch, atol=1e-6)
+    
+    # Test 4: Transpose-induced strides (2D -> 1D view)
+    print("\n4. Transpose-induced strides:")
+    rows, cols = 32, 32
+    x_2d = torch.rand(rows, cols, device=DEVICE)
+    y_2d = torch.rand(rows, cols, device=DEVICE)
+    
+    # Transpose creates non-contiguous memory layout
+    x_t = x_2d.t().contiguous().view(-1)  # flatten transposed
+    y_t = y_2d.t().contiguous().view(-1)  # flatten transposed
+    
+    result_triton = multiply(x_t, y_t)
+    result_torch = x_t * y_t
+    
+    print(f"x stride: {x_t.stride()}, y stride: {y_t.stride()}")
+    print(f"Max diff: {torch.max(torch.abs(result_triton - result_torch))}")
+    assert torch.allclose(result_triton, result_torch, atol=1e-6)
+    
+    # Test 5: Extreme stride case
+    print("\n5. Large stride (every 10th element):")
+    base_size = 10240
+    x_base = torch.rand(base_size, device=DEVICE)
+    y_base = torch.rand(base_size, device=DEVICE)
+    
+    x_large_stride = x_base[::10]
+    y_large_stride = y_base[::10]
+    
+    result_triton = multiply(x_large_stride, y_large_stride)
+    result_torch = x_large_stride * y_large_stride
+    
+    print(f"x stride: {x_large_stride.stride()}, y stride: {y_large_stride.stride()}")
+    print(f"Max diff: {torch.max(torch.abs(result_triton - result_torch))}")
+    assert torch.allclose(result_triton, result_torch, atol=1e-6)
+    
+    print("\nAll mixed stride tests passed!")
+
+
+def benchmark_stride_impact():
+    """Benchmark performance impact of different stride patterns"""
+    
+    print("\n=== Stride Performance Impact ===")
+    
+    import time
+    
+    size = 1024 * 1024  # 1M elements
+    
+    base_size = size * 4
+    base_tensor = torch.rand(base_size, device=DEVICE)
+    
+    # Contiguous case
+    x_cont = base_tensor[:size]
+    y_cont = base_tensor[size:2*size]
+    
+    # Strided case
+    x_strided = base_tensor[::4]
+    y_strided = base_tensor[1::4]
+    
+    # Ensure both strided tensors have the same size
+    min_strided_size = min(len(x_strided), len(y_strided))
+    x_strided = x_strided[:min_strided_size]
+    y_strided = y_strided[:min_strided_size]
+    
+    print(f"Contiguous tensor sizes: x={x_cont.shape}, y={y_cont.shape}")
+    print(f"Strided tensor sizes: x={x_strided.shape}, y={y_strided.shape}")
+    print(f"Contiguous strides: x={x_cont.stride()}, y={y_cont.stride()}")
+    print(f"Strided strides: x={x_strided.stride()}, y={y_strided.stride()}")
+    
+    # Warm up GPU
+    print("Warming up...")
+    for _ in range(10):
+        multiply(x_cont, y_cont)
+        multiply(x_strided, y_strided)
+    
+    torch.cuda.synchronize()
+    
+    # Benchmark contiguous
+    print("Benchmarking contiguous...")
+    start = time.time()
+    for _ in range(100):
+        result = multiply(x_cont, y_cont)
+    torch.cuda.synchronize()
+    cont_time = time.time() - start
+    
+    # Benchmark strided
+    print("Benchmarking strided...")
+    start = time.time()
+    for _ in range(100):
+        result = multiply(x_strided, y_strided)
+    torch.cuda.synchronize()
+    strided_time = time.time() - start
+    
+    print(f"\nResults:")
+    print(f"Contiguous: {cont_time:.4f}s ({1e6*cont_time/100:.2f} μs per call)")
+    print(f"Strided: {strided_time:.4f}s ({1e6*strided_time/100:.2f} μs per call)")
+    print(f"Stride overhead: {(strided_time/cont_time - 1)*100:.1f}%")
+    
+    # Verify correctness
+    torch_cont = x_cont * y_cont
+    torch_strided = x_strided * y_strided
+    triton_cont = multiply(x_cont, y_cont)
+    triton_strided = multiply(x_strided, y_strided)
+    
+    print(f"\nCorrectness check:")
+    print(f"Contiguous max diff: {torch.max(torch.abs(triton_cont - torch_cont))}")
+    print(f"Strided max diff: {torch.max(torch.abs(triton_strided - torch_strided))}")
+
+if __name__ == "__main__":
+    # Run all tests
+    test_mixed_strides()
+    benchmark_stride_impact()
