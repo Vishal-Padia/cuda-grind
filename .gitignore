@@ -257,4 +257,20 @@ $RECYCLE.BIN/
 
 .vscode/
 
+# Binaries and object files
+*.exe
+*.out
+*.o
+*.obj
+
+# CUDA build cache or intermediate files
+*.cubin
+*.ptx
+
+pmp/exercises/chapter-3/matrix_addition
+pmp/exercises/chapter-3/matrix_addition_row
+pmp/exercises/chapter-3/matrix_addition_column
+pmp/exercises/chapter-3/matrix_multiplication
+pmp/exercises/chapter-3/matrix_vector_multiplication
+
 # End of https://www.toptal.com/developers/gitignore/api/python,windows,macos,linux,cuda
