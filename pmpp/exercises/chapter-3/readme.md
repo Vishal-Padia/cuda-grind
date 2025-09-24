@@ -34,7 +34,7 @@ f) Analyze the pros and cons of each preceding kernel design.
 
 3.2. A matrix-vector multiplication takes an input matrix B and a vector C and produces one output vector A. Each element of A is the dot product of one row of B and C, i.e., $\(A_i = \sum_j B_{ij} \cdot C_j\)$. Again, only consider square matrices with single-precision floats. Write a matrix-vector multiplication kernel and the host stub function that can be called with four parameters: pointer to the output matrix, pointer to the input matrix, pointer to the input vector, and the number of elements in each dimension.
 
-> DONE. Checkout [matrix_vector_multiplication_kernel.cu](matrix_vector_multiplication_kernel.cu)
+> DONE. Checkout [matrix_vector_multiplication.cu](matrix_vector_multiplication.cu)
 
 3.3. A new summer intern complains about CUDA’s tediousness since he has to declare many functions he plans to execute on both host and device twice (once as a host function and once as a device function). What is your response?
 
