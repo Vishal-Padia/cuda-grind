@@ -4,23 +4,23 @@
 
 a) Write a matrix addition kernel and the host stub function that can be called with four parameters: pointer to the output matrix, pointer to the first input matrix, pointer to the second input matrix, and the number of elements in each dimension.
 
-> DONE. Checkout [matrix_addition_kernel.cu](matrix_addition_kernel.cu)
+> DONE. Checkout [matrix_addition.cu](matrix_addition.cu)
 
 b) Write the host stub function for memory allocation, data transfer, kernel launch (leave execution config open), and memory free.
 
-> DONE. Checkout [matrix_addition_kernel.cu](matrix_addition_kernel.cu)
+> DONE. Checkout [matrix_addition.cu](matrix_addition.cu)
 
 c) Write a kernel where each thread produces one output matrix element. Complete the execution config for this design.
 
-> DONE. Checkout [matrix_addition_kernel.cu](matrix_addition_kernel.cu)
+> DONE. Checkout [matrix_addition.cu](matrix_addition.cu)
 
 d) Write a kernel where each thread produces one output matrix row. Complete the execution config for this design.
 
-> DONE. Checkout [matrix_addition_kernel_row.cu](matrix_addition_kernel_row.cu)
+> DONE. Checkout [matrix_addition_row.cu](matrix_addition_row.cu)
 
 e) Write a kernel where each thread produces one output matrix column. Complete the execution config for this design.
 
-> DONE. Checkout [matrix_addition_kernel_column.cu](matrix_addition_kernel_column.cu)
+> DONE. Checkout [matrix_addition_column.cu](matrix_addition_column.cu)
 
 f) Analyze the pros and cons of each preceding kernel design.
 
