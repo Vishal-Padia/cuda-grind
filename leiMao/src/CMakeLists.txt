@@ -16,8 +16,8 @@ add_library(
     cuda_gemm
     SHARED
     cuda_gemm_utils.cu
-    00_non_coalesced_global_memory_access.cu
-    # 01_coalesced_global_memory_access.cu
+    # 00_non_coalesced_global_memory_access.cu
+    01_coalesced_global_memory_access.cu
     # 02_2d_block_tiling.cu
     # 02_2d_block_tiling_vectorized_memory_access.cu
     # 03_2d_block_tiling_1d_thread_tiling.cu

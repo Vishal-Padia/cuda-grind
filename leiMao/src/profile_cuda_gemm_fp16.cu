@@ -46,8 +46,8 @@ int main()
                            size_t, __half const*, size_t, __half const*,
                            __half*, size_t, cudaStream_t)>>> const
         gemm_fp16_kernel_launch_functions{
-            {"Custom GEMM Kernel V00", launch_gemm_kernel_v00<__half>},
-            // {"Custom GEMM Kernel V01", launch_gemm_kernel_v01<__half>},
+            // {"Custom GEMM Kernel V00", launch_gemm_kernel_v00<__half>},
+            {"Custom GEMM Kernel V01", launch_gemm_kernel_v01<__half>},
             // {"Custom GEMM Kernel V02", launch_gemm_kernel_v02<__half>},
             // {"Custom GEMM Kernel V02 Vectorized",
             //  launch_gemm_kernel_v02_vectorized<__half>},
