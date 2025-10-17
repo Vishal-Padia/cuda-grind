@@ -44,8 +44,8 @@ int main()
                            size_t, cudaStream_t)>>> const
         gemm_kernel_launch_functions{
             // {"Custom GEMM Kernel V00", launch_gemm_kernel_v00<float>},
-            {"Custom GEMM Kernel V01", launch_gemm_kernel_v01<float>},
-            // {"Custom GEMM Kernel V02", launch_gemm_kernel_v02<float>},
+            // {"Custom GEMM Kernel V01", launch_gemm_kernel_v01<float>},
+            {"Custom GEMM Kernel V02", launch_gemm_kernel_v02<float>},
             // {"Custom GEMM Kernel V02 Vectorized",
             //  launch_gemm_kernel_v02_vectorized<float>},
             // {"Custom GEMM Kernel V03", launch_gemm_kernel_v03<float>},

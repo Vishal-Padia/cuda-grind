@@ -1,0 +1,1 @@
+/usr/bin/g++ -fPIC -shared -Wl,-soname,libcuda_gemm.so -o libcuda_gemm.so CMakeFiles/cuda_gemm.dir/cuda_gemm_utils.cu.o CMakeFiles/cuda_gemm.dir/02_2d_block_tiling.cu.o  -lcudadevrt -lcudart_static -lrt -lpthread -ldl  -L"/usr/local/cuda-12.1/targets/x86_64-linux/lib/stubs" -L"/usr/local/cuda-12.1/targets/x86_64-linux/lib"
