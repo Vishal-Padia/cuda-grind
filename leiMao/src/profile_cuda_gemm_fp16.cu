@@ -48,10 +48,10 @@ int main()
         gemm_fp16_kernel_launch_functions{
             // {"Custom GEMM Kernel V00", launch_gemm_kernel_v00<__half>},
             // {"Custom GEMM Kernel V01", launch_gemm_kernel_v01<__half>},
-            {"Custom GEMM Kernel V02", launch_gemm_kernel_v02<__half>},
+            // {"Custom GEMM Kernel V02", launch_gemm_kernel_v02<__half>},
             // {"Custom GEMM Kernel V02 Vectorized",
             //  launch_gemm_kernel_v02_vectorized<__half>},
-            // {"Custom GEMM Kernel V03", launch_gemm_kernel_v03<__half>},
+            {"Custom GEMM Kernel V03", launch_gemm_kernel_v03<__half>},
             // {"Custom GEMM Kernel V03 Vectorized",
             //  launch_gemm_kernel_v03_vectorized<__half>},
             // {"Custom GEMM Kernel V04", launch_gemm_kernel_v04<__half>},

@@ -153,3 +153,54 @@ Custom GEMM VS cuBLAS GEMM Performance: 13.3288%
 ```
 
 Comparing this with the previous implementation, we can see that the performance has signifacntly improved, in FP16 we have 1.0848 TFLOPS, in FP32 we have 1.00032 TFLOPS. Also the latency is significantly reduced in the 2D Block Tiling implementation.
+
+### 03: Implementation with 2D Block Tiling and 1D Thread Tiling
+In this we cache some even smaller tiles of the input matrices to shared memory to the registers and to the threads. Each thread is responsible for computing small tile of output matrix D instead of one single element. Because the registers are the fastest to access, the performance of this implementation should be much better than the previous one.
+
+fp16:
+```bash
+Device Name: Tesla T4
+Memory Size: 14.5806 GB
+Peak Bandwitdh: 320.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Custom GEMM Kernel V03
+cuBLAS GEMM Kernel Performance
+Latency: 2.45123 ms
+Effective Bandwidth: 82.1328 GB/s
+Effective TFLOPS: 56.0693 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 51.4458 ms
+Effective Bandwidth: 3.91338 GB/s
+Effective TFLOPS: 2.67153 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 4.76469%
+```
+
+fp32:
+```bash
+Device Name: Tesla T4
+Memory Size: 14.5806 GB
+Peak Bandwitdh: 320.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Custom GEMM Kernel V03
+cuBLAS GEMM Kernel Performance
+Latency: 19.5491 ms
+Effective Bandwidth: 10.2985 GB/s
+Effective TFLOPS: 7.03044 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 65.9443 ms
+Effective Bandwidth: 3.05298 GB/s
+Effective TFLOPS: 2.08417 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 29.6449%
+```
+
+From the above results we can see that the performance has signifacntly improved, in FP16 we have 2.67153 TFLOPS, in FP32 we have 2.08417 TFLOPS. Also the latency is significantly reduced in the 2D Block Tiling and 1D Thread Tiling implementation. This is because we are caching the tiles of the input matrices to the registers and to the threads, so we are not accessing the global memory as much, and also we are using the registers to store the values, so we are not accessing the shared memory as much. This is a trade-off between the performance and the memory bandwidth.
