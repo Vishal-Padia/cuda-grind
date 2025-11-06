@@ -204,3 +204,60 @@ Custom GEMM VS cuBLAS GEMM Performance: 29.6449%
 ```
 
 From the above results we can see that the performance has signifacntly improved, in FP16 we have 2.67153 TFLOPS, in FP32 we have 2.08417 TFLOPS. Also the latency is significantly reduced in the 2D Block Tiling and 1D Thread Tiling implementation. This is because we are caching the tiles of the input matrices to the registers and to the threads, so we are not accessing the global memory as much, and also we are using the registers to store the values, so we are not accessing the shared memory as much. This is a trade-off between the performance and the memory bandwidth.
+
+### 04: Implementation with 2D Block Tiling and 2D Thread Tiling
+For each chunk of the K dimension:
+    1. Load A and B tiles into shared memory (all threads help)
+    2. Synchronize (make sure everyone loaded)
+    3. Compute using the shared memory tiles (each thread does its piece)
+    4. Synchronize (make sure everyone finished)
+
+Each thread is doing the same computation pattern, just on different data indices.
+
+fp16:
+```bash
+Device Name: Tesla T4
+Memory Size: 14.5806 GB
+Peak Bandwitdh: 320.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Custom GEMM Kernel V04
+cuBLAS GEMM Kernel Performance
+Latency: 2.45923 ms
+Effective Bandwidth: 81.8656 GB/s
+Effective TFLOPS: 55.8869 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 17.1763 ms
+Effective Bandwidth: 11.7212 GB/s
+Effective TFLOPS: 8.00168 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 14.3176%
+```
+
+fp32:
+```bash
+Device Name: Tesla T4
+Memory Size: 14.5806 GB
+Peak Bandwitdh: 320.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Custom GEMM Kernel V04
+cuBLAS GEMM Kernel Performance
+Latency: 19.5892 ms
+Effective Bandwidth: 10.2774 GB/s
+Effective TFLOPS: 7.01604 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 34.1946 ms
+Effective Bandwidth: 5.88768 GB/s
+Effective TFLOPS: 4.01932 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 57.2876%
+```
+
+From the above results we can see that the performance has signifacntly improved, in FP16 we have 8.00168 TFLOPS, in FP32 we have 4.01932 TFLOPS. Also the latency is significantly reduced in the 2D Block Tiling and 2D Thread Tiling implementation. This is because we are caching the tiles of the input matrices to the shared memory, so we are not accessing the global memory as much, and also we are using the shared memory to store the values, so we are not accessing the registers as much. This is a trade-off between the performance and the memory bandwidth.

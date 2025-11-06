@@ -20,9 +20,9 @@ add_library(
     # 01_coalesced_global_memory_access.cu
     # 02_2d_block_tiling.cu
     # 02_2d_block_tiling_vectorized_memory_access.cu
-    03_2d_block_tiling_1d_thread_tiling.cu
+    # 03_2d_block_tiling_1d_thread_tiling.cu
     # 03_2d_block_tiling_1d_thread_tiling_vectorized_memory_access.cu
-    # 04_2d_block_tiling_2d_thread_tiling.cu
+    04_2d_block_tiling_2d_thread_tiling.cu
     # 04_2d_block_tiling_2d_thread_tiling_vectorized_memory_access.cu
     # 05_2d_block_tiling_2d_thread_tiling_matrix_transpose.cu
     # 05_2d_block_tiling_2d_thread_tiling_matrix_transpose_vectorized_memory_access.cu
