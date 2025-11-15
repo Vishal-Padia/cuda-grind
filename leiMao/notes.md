@@ -261,3 +261,55 @@ Custom GEMM VS cuBLAS GEMM Performance: 57.2876%
 ```
 
 From the above results we can see that the performance has signifacntly improved, in FP16 we have 8.00168 TFLOPS, in FP32 we have 4.01932 TFLOPS. Also the latency is significantly reduced in the 2D Block Tiling and 2D Thread Tiling implementation. This is because we are caching the tiles of the input matrices to the shared memory, so we are not accessing the global memory as much, and also we are using the shared memory to store the values, so we are not accessing the registers as much. This is a trade-off between the performance and the memory bandwidth.
+
+### 05: Implementation with 2D Block Tiling, 2D Thread Tiling, and Matrix Transpose with Vectorized Memory Access
+
+In this implementation, we are transposing the matrix A and B in the shared memory to make the memory access more coalesced. This is done by using the vectorized memory access to transpose the matrix A and B. We are also using the vectorized memory access to read the values from the shared memory and to write the values to the global memory.
+
+fp16:
+```bash
+Device Name: Tesla T4
+Memory Size: 14.5806 GB
+Peak Bandwitdh: 320.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Custom GEMM Kernel V05 Vectorized
+cuBLAS GEMM Kernel Performance
+Latency: 2.45526 ms
+Effective Bandwidth: 81.9979 GB/s
+Effective TFLOPS: 55.9773 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 12.126 ms
+Effective Bandwidth: 16.6029 GB/s
+Effective TFLOPS: 11.3343 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 20.248%
+```
+
+fp32:
+```bash
+Device Name: Tesla T4
+Memory Size: 14.5806 GB
+Peak Bandwitdh: 320.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Custom GEMM Kernel V05 Vectorized
+cuBLAS GEMM Kernel Performance
+Latency: 19.8213 ms
+Effective Bandwidth: 10.1571 GB/s
+Effective TFLOPS: 6.93391 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 35.7192 ms
+Effective Bandwidth: 5.63637 GB/s
+Effective TFLOPS: 3.84776 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 55.492%
+```
+
+From the above results we can see that the performance has signifacntly improved, in FP16 we have 11.3343 TFLOPS, in FP32 we have 3.84776 TFLOPS. Also the latency is significantly reduced in the 2D Block Tiling, 2D Thread Tiling, and Matrix Transpose with Vectorized Memory Access implementation. This is because we are transposing the matrix A and B in the shared memory to make the memory access more coalesced, and also we are using the vectorized memory access to read the values from the shared memory and to write the values to the global memory. This is a trade-off between the performance and the memory bandwidth. This implementation is more efficient than the previous implementation, and it is also more flexible since it can be used for any matrix size.
