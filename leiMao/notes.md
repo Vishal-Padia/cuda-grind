@@ -313,3 +313,78 @@ Custom GEMM VS cuBLAS GEMM Performance: 55.492%
 ```
 
 From the above results we can see that the performance has signifacntly improved, in FP16 we have 11.3343 TFLOPS, in FP32 we have 3.84776 TFLOPS. Also the latency is significantly reduced in the 2D Block Tiling, 2D Thread Tiling, and Matrix Transpose with Vectorized Memory Access implementation. This is because we are transposing the matrix A and B in the shared memory to make the memory access more coalesced, and also we are using the vectorized memory access to read the values from the shared memory and to write the values to the global memory. This is a trade-off between the performance and the memory bandwidth. This implementation is more efficient than the previous implementation, and it is also more flexible since it can be used for any matrix size.
+
+### 06: Implementation with 2D Block Tiling, 2D Warp Tiling, 2D Thread Tiling, and Matrix Transpose with Vectorized Memory Access
+- Static assert things like block_tile, thread tile, no of warps, etc —> this is done to match the hardware capabilities
+- Cache A_vals & B_vals in the register
+- Define thread_linear_idx, warp_linear_idx, warp_row_idx, warp_col_idx, thread_linear_idx_in_warp, thread_linear_row_idx_in_warp, thread_linear_col_idx_in_warp, num_thread_block_tiles.
+- Accumulate the results in registers for each thread.
+- Use vectorized memory access.
+- Instead of 8 individual 4-byte loads (8 transactions), load as 2 int4 chunks (2 transactions), reducing memory overhead and bandwidth underutilization.
+- Tiling over k chunks, since we can’t fit all of k into shared mem at once, we iterate over k chunks of BLOCK_TILE_SIZE_K
+    - Load block_tile_size_k —> wide slice of A & B into shared memory
+    - All threads in a block compute their piece using the slice
+    - Accumulate results in C_thread_results
+    - Move to the next K-slice and repeat
+- Compute loop
+    - for each (thread_tile_repeat_row, thread_tile_repeat_col) pair:
+        - grab one A value and one B value
+        - multiply and accumulate into C
+- Then we do the same nesting as compute loop, but now we iterate over vectorized chunk in X
+    - Map from local coords to global matrix coords
+    - boundary check
+    - Vectorized read from DRAM
+    - for each chunk of 4 values
+        - Scale compute results by alpha
+        - Add beta x old C value
+        - Store back in int4 chunk
+    - vectorized write to C
+
+
+fp16:
+```bash
+Device Name: Tesla T4
+Memory Size: 14.5806 GB
+Peak Bandwitdh: 320.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Custom GEMM Kernel V06 Vectorized
+cuBLAS GEMM Kernel Performance
+Latency: 2.45965 ms
+Effective Bandwidth: 81.8518 GB/s
+Effective TFLOPS: 55.8775 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 12.2127 ms
+Effective Bandwidth: 16.485 GB/s
+Effective TFLOPS: 11.2537 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 20.14%
+```
+
+fp32:
+```bash
+Device Name: Tesla T4
+Memory Size: 14.5806 GB
+Peak Bandwitdh: 320.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Custom GEMM Kernel V06 Vectorized
+cuBLAS GEMM Kernel Performance
+Latency: 18.2352 ms
+Effective Bandwidth: 11.0405 GB/s
+Effective TFLOPS: 7.53701 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 30.7568 ms
+Effective Bandwidth: 6.54577 GB/s
+Effective TFLOPS: 4.46858 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 59.2884%
+```
+
+From the above results we can see that the performance has increased significantly in both FP32. There's a slight decrease in performance in FP16, but it is still a significant improvement over the previous implementation. Why the improvement? Because we are using the vectorized memory access to read the values from the shared memory and to write the values to the global memory. This is a trade-off between the performance and the memory bandwidth. This implementation is more efficient than the previous implementation, and it is also more flexible since it can be used for any matrix size.
