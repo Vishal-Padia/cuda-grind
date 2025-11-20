@@ -58,8 +58,8 @@ int main()
             // {"Custom GEMM Kernel V05 Vectorized",
             //  launch_gemm_kernel_v05_vectorized<float>},
             // {"Custom GEMM Kernel V06", launch_gemm_kernel_v06<float>},
-            {"Custom GEMM Kernel V06 Vectorized",
-             launch_gemm_kernel_v06_vectorized<float>},
+            // {"Custom GEMM Kernel V06 Vectorized",
+            //  launch_gemm_kernel_v06_vectorized<float>},
             // {"Custom GEMM Kernel V06 Vectorized Double Buffered",
             //  launch_gemm_kernel_v06_vectorized_double_buffered<float>},
         };

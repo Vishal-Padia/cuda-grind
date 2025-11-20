@@ -388,3 +388,60 @@ Custom GEMM VS cuBLAS GEMM Performance: 59.2884%
 ```
 
 From the above results we can see that the performance has increased significantly in both FP32. There's a slight decrease in performance in FP16, but it is still a significant improvement over the previous implementation. Why the improvement? Because we are using the vectorized memory access to read the values from the shared memory and to write the values to the global memory. This is a trade-off between the performance and the memory bandwidth. This implementation is more efficient than the previous implementation, and it is also more flexible since it can be used for any matrix size.
+
+### 07: Implementation with 2D Block Tiling, 2D Warp Tiling, 2D Thread Tiling, Matrix Transpose with Vectorized Memory Access, and WMMA
+The kernel divides MxN output C into large thread block sized tiles (128x128).
+
+Each block is partitioned internally into warps along X and Y, giving multiple warps per block.
+
+The kernel uses warp-level tiling, where each warp computes a smaller sub-tile of the block tile.
+
+- block tile: Full Block output tile (128x128)
+- warp tile: subdivision for each warp (32x64 or 64x32)
+- WMMA tile: tensor core tiles sizes (16x16x16 mma shape)
+
+Then the kernel loads tiles of A and B into shared memory arrays. It uses padding/skew to avoid shared memory bank conflicts.
+
+Then we use CUDA WMMA API, it divides matrix tiles into fragments distributed across the warps threads. `load_matrix_sync` loads pieces of A, B and existing C data from memory to registers in the form of fragments. `mma_sync` performs the multiply-accumulate using Tensor Cores on these fragments.
+
+Then we use accumulators (`acc_frags`), which reside in registers, not in shared or global memory. Each warp accumulates partial results over the K-dimension tiles. The loop over `thread_block_tile_idx` traverses the K-dimension in chunks matching the WMMA tile size.
+
+Next we do memory loads in shared memory, basically what we did in many previous implementations.
+
+After completing k-tile accumulation, the kernel loads the existing C output tile from global memory into fragments. It applies the scaling “alpha x accumulated + Beta x C”. Results are stored back using `store_matrix_sync`
+
+MENTAL MODEL:
+
+```markdown
+Transpose for access locality
+Shared memory = fast cache
+Fill Fragments from shared -> MMA on tensor cores
+Results accumulated in registers, only written out at the end
+Structure matches hardware parallelism + tensor core requirements
+```
+
+We only do this for fp16 since fp32 is not supported by the WMMA API.
+
+fp16:
+```bash
+Device Name: Tesla T4
+Memory Size: 14.5806 GB
+Peak Bandwitdh: 320.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Custom GEMM Kernel V07 Vectorized
+cuBLAS GEMM Kernel Performance
+Latency: 2.45338 ms
+Effective Bandwidth: 82.061 GB/s
+Effective TFLOPS: 56.0203 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 10.8349 ms
+Effective Bandwidth: 18.5812 GB/s
+Effective TFLOPS: 12.6848 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 22.6432%
+```
+In the previous implementations the TFLOPS were around 11.2537 TFLOPS, in this implementation the TFLOPS are around 12.6848 TFLOPS. If you see that there's a major improvement in performance, it is because we are using the WMMA API to perform the matrix multiplication.
