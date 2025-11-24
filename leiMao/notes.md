@@ -445,3 +445,90 @@ Effective TFLOPS: 12.6848 TFLOPS
 Custom GEMM VS cuBLAS GEMM Performance: 22.6432%
 ```
 In the previous implementations the TFLOPS were around 11.2537 TFLOPS, in this implementation the TFLOPS are around 12.6848 TFLOPS. If you see that there's a major improvement in performance, it is because we are using the WMMA API to perform the matrix multiplication.
+
+# A summary of every kernel implementation.
+
+### Kernel 00: Naive Implementation with Non-Coalesced Memory Access
+
+- Mental model:
+    - Each thread computes one element of the output matrix C.
+    - This is super inefficient since we are not using the parallelism of the GPU.
+    - Get the row and column index
+    - Perform boundary check (row_idx < m and col_idx <n)
+    - Initialize the sum to 0
+    - Loop over the k dimension and accumulate the result
+
+### Kernel 01: Naive Implementation with Coalesced Memory Access
+
+- Mental model:
+    - Each thread still computes one element of the output matrix C.
+    - But now we are using coalesced memory access to load the data from the global memory.
+    - To fix the non-coalesced memory access, we just use the fast thread index for indexing the row of matrices that are stored in row-major order on memory instead so that the threads in the same warp read or overwrite the elements from the same row of the matrices are coalesced.
+    - Get the row and column index
+    - Perform boundary check (row_idx < m and col_idx <n)
+    - Initialize the sum to 0
+    - Loop over the k dimension and accumulate the result
+
+### Kernel 02: 2D Block Tiling
+
+- Mental model:
+    - We define a template which loads the data from the global memory to the shared memory.
+    - In the template, we load the data for A on DRAM to A_thread_block_tile on shared memory and same for B on DRAM to B_thread_block_tile on shared memory.
+    - Each thread figures out it's identity (thread_linear_idx)
+    - Each thread figures out which element of C it will eventually write to (C_row_idx, C_col_idx)
+    - For each tile along the k-dimension, all threads cooperatively load the data from the global memory to the shared memory.
+    - Wait for all threads to finish loading before anyone starts computing.
+    - After loading the data, we compute the partial dot product for its assigned C element.
+    - Accumulate into sum across all k-tiles.
+    - Then we perform the boundary check to make sure we don't go out of bounds and then we finally write the result to C with alpha/beta scaling.
+
+### Kernel 03: 2D Block Tiling with 1D Thread Tiling
+
+- Mental Model:
+    - Each thread figure out it's identity (thread_linear_idx)
+    - Cache a tile of A and B in shared memory.
+    - Each thread will compute 8 elements of C (all in the same column and different rows)
+    - Outer loop over K-tiles
+    - load data from global memory to shared memory
+    - synchronize
+    - COMPUTE PHASE:
+        - for each (k_i, b_row_idx) pair:
+            - b_val is cached in the register to alleviate the pressure on the shared memory access. This same value will be used by all threads in the same warp.
+            - for each (thread_tile_row_idx, A_row_idx) pair:
+                - A_val is loaded from the shared memory
+                - accumulate into sum across all k-tiles.
+    - synchronize
+    - Loop over (thread_tile_row_idx, C_row_idx) pairs:
+        - perform boundary check
+        - write results to C with alpha/beta scaling.
+
+### Kernel 04: 2D Block Tiling and 2D Thread Tiling
+
+- Mental Model:
+    - Each thread figures out it's identity (thread_linear_idx)
+    - Cache tile of A and B in shared memory.
+    - Each thread in the block computes the THREAD_TILE_SIZE_Y output values.
+    - A_vals are cached in the register (8 elements per thread)
+    - B_vals are cached in the register (8 elements per thread)
+    - C_thread_results: accumulator for the 8x8 tile this thread is computing.
+    - Outer loop over K-tiles
+        - Load data from global memory to shared memory
+        - synchronize
+        - COMPUTE PHASE:
+            - Grab 8 values vertically from the A tile at column k_i
+            - Grab 8 values horizontally from the B tile at row k_i
+            - Compute all pairwise products and accumulate the results into C_thread_results.
+    - synchronize
+    - After processing all k-tiles, each thread has accumulated it's final 8x8 reuslts in C_thread_results. Which is written back to C with alpha/beta scaling.
+
+### Kernel 05: 2D Block Tiling, 2D Thread Tiling, and Matrix Transpose with Vectorized Memory Access
+
+- Mental Model:
+    - Core algorithm is the same:
+        - Each thread block computes a 128x128 tile of C.
+        - Each of 256 threads computes an 8x8 region.
+        - Process K dimension in chunks of 16.
+        - Load 8 A values + 8 B values, compute 64 products in registers
+    - Matrix Transpose of A in shared memory.
+    - Vectorized memory access.
+    - 
