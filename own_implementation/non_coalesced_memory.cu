@@ -36,7 +36,7 @@ void launch_non_coalesced_memory(size_t m, size_t n, size_t k, T const* alpha,
     dim3 const grid_dim{
         (static_cast<unsigned int>(m) + block_dim.x - 1U) / block_dim.x,
         (static_cast<unsigned int>(n) + block_dim.y - 1U) / block_dim.y, 1U};
-    gemm_v00<T><<<grid_dim, block_dim, 0U, stream>>>(m, n, k, *alpha, A, lda, B, ldb, *beta, C, ldc);
+    non_coalesced_memory<T><<<grid_dim, block_dim, 0U, stream>>>(m, n, k, *alpha, A, lda, B, ldb, *beta, C, ldc);
 
     CHECK_LAST_CUDA_ERROR();
 }
