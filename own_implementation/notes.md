@@ -8,9 +8,70 @@ Doing the above thing will probably take me around 15days or a month, but I thin
 
 So yes, I'll be doing this for the next 15 days or a month. It will be slow but I'll learn a lot.
 
+Basic info about nsys:
+'osrt_sum' - OS Runtime Statistics
+
+This is CPU-side profiling. It shows where your CPU spent time while the GPU was working:
+
+- Time (%): Percentage of total CPU time spent in this system call
+- Total Time (ns): Aggregate nanoseconds across all calls
+- Num Calls: How many times this function was called
+- Avg/Med/Min/Max: Statistics on individual call duration
+- StdDev: Variance in call duration
+
+'cuda_api_sum' - CUDA API Statistics
+
+'cuda_gpu_kern_sum' - GPU Kernel Execution Statistics
+
+'cuda_gpu_mem_time_sum' - Memory Operation Timing
+
+'cuda_gpu_mem_size_sum' - Memory Volume
+
+### Here's a decision tree Claude gave me in order to decide what to optimize first:
+```
+Is bandwidth utilization < 10%?
+  ├─ YES → Memory access pattern is the problem
+  │         → Coalesce, improve spatial locality, reduce scattered access
+  │         → Your situation
+  │
+  └─ NO → Is it 10-50%?
+          ├─ YES → Mixed problem, profile deeper
+          │         → Check cache hit rates with nsys --stats=full
+          │         → Look at branch divergence
+          │
+          └─ NO (> 50%) → Compute is the bottleneck
+                          → Reduce instruction count
+                          → Improve ILP (instruction-level parallelism)
+                          → Better algorithm complexity
+
+Is memory copy time > 30% of total?
+  ├─ YES → Reduce data movement
+  │         → Batch operations
+  │         → Keep data on GPU
+  │
+  └─ NO → Focus elsewhere
+
+Is API overhead > 5% of total?
+  ├─ YES → Reduce kernel launch overhead
+  │         → Batch kernel calls
+  │         → Use persistent kernels
+  │
+  └─ NO → Kernel execution is your target
+```
+
 # 00: Non-Coalesced Memory Access Implementation
 
 ### 01: Profiling the kernel:
+
+Profiling the fp16 kernel:
+- 48% of the CPU time is spent in cudaStreamSynchronize (waiting for my slow kernel to finish)
+- 23.5% of time is spent while CPU is waiting for GPU events (cudaEventSynchronize)
+- 10.2% of time is spend in creating a new asynchronous stream (cudaStreamCreate)
+
+Profiling the fp32 kernel:
+- 37.6% of CPU time is spent here = CPU waiting for my slow kernel to finish. (cudaStreamSynchronize)
+- 24% of time is spent in allocating pinned host memory. (cudaHostAlloc)
+- 18.4% of time is spent while CPU is waiting for GPU events (cudaEventSynchronize)
 
 
 ### 02: Benchmarking the kernel:
@@ -40,7 +101,8 @@ Custom GEMM VS cuBLAS GEMM Performance: 0.209798%
 
 FP32:
 ```bash
-y Size: 15.5797 GB
+Device Name: NVIDIA GeForce RTX 4080 SUPER
+Memory Size: 15.5797 GB
 Peak Bandwitdh: 736.064 GB/s
 
 Matrix Size: M = 4096 N = 4096 K = 4096
@@ -106,13 +168,29 @@ Effective Bandwidth: 0.6295 GB/s
 Effective TFLOPS: 0.429739 TFLOPS
 Custom GEMM VS cuBLAS GEMM Performance: 1.08189%
 ```
+FP16:
+
+| My Implementation | LeiMao's Implementation |
+|------------------|-------------------------|
+| Latency: 320.735 ms | Latency: 319.888 ms |
+| Bandwidth: 0.627705 GB/s | Bandwidth: 0.629365 GB/s |
+| TFLOPS: 0.429647 TFLOPS | TFLOPS: 0.429739 TFLOPS |
+
+FP32:
+
+| My Implementation | LeiMao's Implementation |
+|------------------|-------------------------|
+| Latency: 319.431 ms | Latency: 319.82 ms |
+| Bandwidth: 0.630266 GB/s | Bandwidth: 0.6295 GB/s |
+| TFLOPS: 0.430262 TFLOPS | TFLOPS: 0.429739 TFLOPS |
 
 If you see there's not a lot of difference between LeiMao's implementation and my implementation.  
 
 ### 04: What can be optimized more?
 
-We can use coalesced memory access, 2D thread & block tiling, and much more.
-
+- Changing the memory access pattern to coalesced memory access.
+- Using Tiling techniques to improve the memory access pattern.
+- Using Warp Tiling techniques to improve the memory access pattern.
 
 # 01: Coalesced Memory Access Implementation
 
