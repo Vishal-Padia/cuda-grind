@@ -17,6 +17,7 @@ add_library(
     SHARED
     cuda_gemm_utils.cu
     non_coalesced_memory.cu
+    coalesced_memory_access.cu
 )
 
 # Add the include directory of the library to the include directories of the project

@@ -4,6 +4,7 @@
 #include "cuda_gemm.hpp"
 #include "profile_utils.cuh"
 #include "non_coalesced_memory.cu"
+#include "coalesced_memory_access.cu"
 
 int main()
 {
@@ -44,7 +45,8 @@ int main()
                            size_t, float const*, size_t, float const*, float*,
                            size_t, cudaStream_t)>>> const
         gemm_kernel_launch_functions{
-            {"Non-Coalesced Memory Access Implementation", launch_non_coalesced_memory<float>},
+            // {"Non-Coalesced Memory Access Implementation", launch_non_coalesced_memory<float>},
+            {"Coalesced Memory Access Implementation", launch_coalesced_memory_access<float>},
         };
 
     for (auto const& gemm_kernel_launch_function : gemm_kernel_launch_functions)
