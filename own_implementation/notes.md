@@ -196,11 +196,138 @@ If you see there's not a lot of difference between LeiMao's implementation and m
 
 ### 01: Profiling the kernel:
 
+Profiling the Fp16 kernel:
+- 28.7% percent of the time went in cudaStreamCreate (allocating a new asynchronous stream)
+- 22.6% percent of the time went in cudaHostAlloc (allocating pinned host memory)
+- 22.0% percent of the time went in cudaStreamSynchronize (waiting for the kernel to finish)
+- 11.3% percent of the time went in cudaEventSynchronize (waiting for the kernel to finish)
+
+Profiling the Fp32 kernel:
+- 31.8% percent of the time went in cudaHostAlloc (allocating pinned host memory)
+- 21.6% percent of the time went in cudaStreamCreate (allocating a new asynchronous stream)
+- 17.9% percent of the time went in cudaStreamSynchronize (waiting for the kernel to finish)
+- 11.7% percent of the time went in cudaFreeHost (freeing pinned host memory)
+- 9.1% percent of the time went in cudaEventSynchronize (waiting for the kernel to finish)
+
 ### 02: Benchmarking the kernel:
+
+FP16:
+```bash
+Device Name: NVIDIA GeForce RTX 4080 SUPER
+Memory Size: 15.5685 GB
+Peak Bandwitdh: 736.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Coalesced Memory Access Implementation
+cuBLAS GEMM Kernel Performance
+Latency: 0.72464 ms
+Effective Bandwidth: 277.83 GB/s
+Effective TFLOPS: 189.665 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 42.79 ms
+Effective Bandwidth: 4.70499 GB/s
+Effective TFLOPS: 3.21194 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 1.69348%
+```
+
+FP32:
+```bash
+Device Name: NVIDIA GeForce RTX 4080 SUPER
+Memory Size: 15.5685 GB
+Peak Bandwitdh: 736.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Coalesced Memory Access Implementation
+cuBLAS GEMM Kernel Performance
+Latency: 3.80214 ms
+Effective Bandwidth: 52.9508 GB/s
+Effective TFLOPS: 36.1478 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 47.548 ms
+Effective Bandwidth: 4.23418 GB/s
+Effective TFLOPS: 2.89053 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 7.99643%
+```
 
 ### 03: Comparing the results with LeiMao's implementation:
 
+FP16:
+```bash
+Device Name: NVIDIA GeForce RTX 4080 SUPER
+Memory Size: 15.5685 GB
+Peak Bandwitdh: 736.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Custom GEMM Kernel V01
+cuBLAS GEMM Kernel Performance
+Latency: 0.718848 ms
+Effective Bandwidth: 280.068 GB/s
+Effective TFLOPS: 191.193 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 42.7653 ms
+Effective Bandwidth: 4.70771 GB/s
+Effective TFLOPS: 3.2138 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 1.68091%
+```
+
+FP32:
+```bash
+Device Name: NVIDIA GeForce RTX 4080 SUPER
+Memory Size: 15.5685 GB
+Peak Bandwitdh: 736.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Custom GEMM Kernel V01
+cuBLAS GEMM Kernel Performance
+Latency: 3.45392 ms
+Effective Bandwidth: 58.2893 GB/s
+Effective TFLOPS: 39.7922 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 44.4723 ms
+Effective Bandwidth: 4.52701 GB/s
+Effective TFLOPS: 3.09044 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 7.76645%
+```
+
+FP16:
+| My Implementation | LeiMao's Implementation |
+|------------------|-------------------------|
+| Latency: 42.79 ms | Latency: 42.7653 ms |
+| Bandwidth: 4.70499 GB/s | Bandwidth: 4.70771 GB/s |
+| TFLOPS: 3.21194 TFLOPS | TFLOPS: 3.2138 TFLOPS |
+
+FP32:
+
+| My Implementation | LeiMao's Implementation |
+|------------------|-------------------------|
+| Latency: 47.548 ms | Latency: 44.4723 ms |
+| Bandwidth: 4.23418 GB/s | Bandwidth: 4.52701 GB/s |
+| TFLOPS: 2.89053 TFLOPS | TFLOPS: 3.09044 TFLOPS |
+
+If you see that there's not a lot of difference between LeiMao's implementation and my implementation. Apart from the TFLOPS in FP32, my implementation is slightly bad than LeiMao's implementation.
+
 ### 04: What can be optimized more?
+
+- We can use 2d block tiling to improve the memory access pattern.
+- Use warp level tiling
+- Use thread level tiling
+ and much more
 
 # 02: 2D Block Tiling Implementation
 
