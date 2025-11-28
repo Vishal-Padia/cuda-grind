@@ -25,7 +25,7 @@ __device__ void load_data_to_shared_memory(T const* A, size_t lda,
 
        // boundary check
        T val{static_cast<T>(0)};
-       if (A_row_idx < m && A_col_idx < n)
+       if (A_row_idx < m && A_col_idx < k)
        {
             val = A[A_row_idx * lda + A_col_idx];
        }
@@ -70,7 +70,7 @@ __global__ void two_dim_block_tiling(size_t m, size_t n, size_t k, T alpha, T co
     size_t const num_thread_block_tiles{(k + BLOCK_TILE_SIZE_K - 1) / BLOCK_TILE_SIZE_K};
 
     T sum{static_cast<T>(0)};
-    for (size_t thread_block_tile_idx{0U}; thread_block_tile_idx < num_thread_block_tiles; ++thread_block_tile_idx);
+    for (size_t thread_block_tile_idx{0U}; thread_block_tile_idx < num_thread_block_tiles; ++thread_block_tile_idx)
     {
         load_data_to_shared_memory<T, BLOCK_TILE_SIZE_X, BLOCK_TILE_SIZE_Y, BLOCK_TILE_SIZE_K, NUM_THREADS>(A, lda, B, ldb, A_thread_block_tile, B_thread_block_tile, thread_block_tile_idx, thread_linear_idx, m, n, k);
         __syncthreads();
@@ -78,7 +78,7 @@ __global__ void two_dim_block_tiling(size_t m, size_t n, size_t k, T alpha, T co
         #pragma unroll
         for (size_t k_i{0U}; k_i < BLOCK_TILE_SIZE_K; ++k_i)
         {
-            sum += A_thread_block_tile[threadIdx.y][k_i] + B_thread_block_tile[k_i][threadIdx.x];
+            sum += A_thread_block_tile[threadIdx.y][k_i] * B_thread_block_tile[k_i][threadIdx.x];
         }
         __syncthreads();
     }
