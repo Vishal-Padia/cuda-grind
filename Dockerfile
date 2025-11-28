@@ -3,7 +3,7 @@ FROM nvcr.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install base dependencies (neovim installed separately below)
+# Install base dependencies
 RUN apt-get update && apt-get install -y \
     wget \
     ca-certificates \
@@ -15,13 +15,18 @@ RUN apt-get update && apt-get install -y \
     python3-venv \
     lsb-release \
     software-properties-common \
+    unzip \
+    ripgrep \
+    fd-find \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Neovim from official PPA (Ubuntu repos have outdated version without proper Lua)
-RUN add-apt-repository -y ppa:neovim-ppa/stable && \
-    apt-get update && \
-    apt-get install -y neovim && \
-    rm -rf /var/lib/apt/lists/*
+# Install Neovim 0.10.x from GitHub releases (official pre-built binary)
+RUN curl -LO https://github.com/neovim/neovim/releases/download/v0.11.5/nvim-linux-x86_64.tar.gz && \
+    tar -xzf nvim-linux-x86_64.tar.gz && \
+    mv nvim-linux-x86_64 /opt/nvim && \
+    ln -sf /opt/nvim/bin/nvim /usr/local/bin/nvim && \
+    rm nvim-linux-x86_64.tar.gz && \
+    nvim --version
 
 # Install Nsight Systems CLI (nsys) via official NVIDIA repo
 # Using the modern signed-by approach instead of deprecated apt-key
@@ -59,5 +64,5 @@ RUN echo "=== Verifying installations ===" && \
     echo "Python:" && python3 --version && \
     echo "=== All installations verified ==="
 
-# Keep container running
+# Keep container running for SSH access
 CMD ["sleep", "infinity"]
