@@ -441,7 +441,27 @@ Effective TFLOPS: 3.90986 TFLOPS
 Custom GEMM VS cuBLAS GEMM Performance: 10.8101%
 ```
 
+FP16:
+| My Implementation | LeiMao's Implementation |
+|------------------|-------------------------|
+| Latency: 35.1448 ms | Latency: 34.9449 ms |
+| Bandwidth: 5.72848 GB/s | Bandwidth: 5.76126 GB/s |
+| TFLOPS: 3.91064 TFLOPS | TFLOPS: 3.93302 TFLOPS |
+
+FP32:
+| My Implementation | LeiMao's Implementation |
+|------------------|-------------------------|
+| Latency: 35.1404 ms | Latency: 35.1519 ms |
+| Bandwidth: 5.7292 GB/s | Bandwidth: 5.72734 GB/s |
+| TFLOPS: 3.91114 TFLOPS | TFLOPS: 3.90986 TFLOPS |
+
+There's not a lot of difference between LeiMao's implementation and my implementation, because well I learnt from his implementation :p
+
 ### 04: What can be optimized more?
+
+- Have better tiling strategy.
+- Use better memory access pattern.
+- Use wmma to improve the performance.
 
 # 03: 2D Block Tiling and 1D Thread Tiling Implementation
 
