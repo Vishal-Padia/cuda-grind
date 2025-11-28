@@ -18,6 +18,14 @@ RUN apt-get update && apt-get install -y \
     unzip \
     ripgrep \
     fd-find \
+    fzf \
+    build-essential \
+    cmake \
+    ninja-build \
+    make \
+    gdb \
+    openssh-server \
+    tmux \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Neovim 0.10.x from GitHub releases (official pre-built binary)
@@ -64,5 +72,16 @@ RUN echo "=== Verifying installations ===" && \
     echo "Python:" && python3 --version && \
     echo "=== All installations verified ==="
 
+# Configure ssh for RunPod
+RUN mkdir -p /var/run/sshd && \
+    mkdir -p /root/.ssh && \
+    chmod 700 /root/.ssh && \
+    echo "PermitRootLogin yes" >> /etc/ssh/sshd_config && \
+    echo "PasswordAuthentication no" >> /etc/ssh/sshd_config && \
+    echo "PubkeyAuthentication yes" >> /etc/ssh/sshd_config
+
+# Expose SSH port for IDE remote connections
+EXPOSE 22
+
 # Keep container running for SSH access
-CMD ["sleep", "infinity"]
+CMD ["/bin/bash", "-c", "service ssh start && sleep infinity"]

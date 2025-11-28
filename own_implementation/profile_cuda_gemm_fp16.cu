@@ -5,6 +5,7 @@
 #include "profile_utils.cuh"
 #include "non_coalesced_memory.cu"
 #include "coalesced_memory_access.cu"
+#include "2d_block_tiling.cu"
 
 int main()
 {
@@ -49,7 +50,8 @@ int main()
                            __half*, size_t, cudaStream_t)>>> const
         gemm_fp16_kernel_launch_functions{
             // {"Non-Coalesced Memory Access Implementation", launch_non_coalesced_memory<__half>},
-            {"Coalesced Memory Access Implementation", launch_coalesced_memory_access<__half>},
+            // {"Coalesced Memory Access Implementation", launch_coalesced_memory_access<__half>},
+            {"2D block tiling Implementation", launch_two_dim_kernel<__half>},
         };
 
     for (auto const& gemm_fp16_kernel_launch_function :
