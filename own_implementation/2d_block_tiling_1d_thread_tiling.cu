@@ -60,7 +60,6 @@ __global__ void two_dim_tiling_one_dim_thread_kernel(size_t m, size_t n, size_t 
 }
 
 template <typename T>
-template <typename T>
 void launch_two_dim_tiling_one_dim_thread_kernel(size_t m, size_t n, size_t k, T const* alpha,
                             T const* A, size_t lda, T const* B, size_t ldb,
                             T const* beta, T* C, size_t ldc,
