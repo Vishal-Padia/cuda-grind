@@ -46,6 +46,7 @@ add_library(
     non_coalesced_memory.cu
     coalesced_memory_access.cu
     2d_block_tiling.cu
+    03_2d_block_tiling_1d_thread_tiling.cu
 )
 
 # Add the include directory of the library to the include directories of the project
