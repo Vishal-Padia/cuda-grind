@@ -8,6 +8,10 @@ Doing the above thing will probably take me around 15days or a month, but I thin
 
 So yes, I'll be doing this for the next 15 days or a month. It will be slow but I'll learn a lot.
 
+Nsys commands to profile the kernel:
+```bash
+nsys 
+
 Basic info about nsys:
 'osrt_sum' - OS Runtime Statistics
 

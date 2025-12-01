@@ -8,7 +8,7 @@ template <typename T, size_t BLOCK_TILE_SIZE_X, size_t BLOCK_TILE_SIZE_Y, size_t
 __global__ void two_dim_tiling_one_dim_thread_kernel(size_t m, size_t n, size_t k, T alpha, T const* A, size_t lda, T const* B, size_t ldb, T beta, T* C, size_t ldc)
 {
     // num of threads and thread linear idx
-    constexpr size_t NUM_THREADS{BLOCK_TILE_SIZE_X * BLOCK_TILE_SIZE_K / BLOCK_TILE_SIZE_Y};
+    constexpr size_t NUM_THREADS{BLOCK_TILE_SIZE_X * BLOCK_TILE_SIZE_Y / THREAD_TILE_SIZE_Y};
     size_t const thread_linear_idx{threadIdx.y * blockDim.x + threadIdx.x};
 
     // cache tiles A and B
