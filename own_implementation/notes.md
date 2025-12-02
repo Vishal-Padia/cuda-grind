@@ -586,6 +586,10 @@ Custom GEMM VS cuBLAS GEMM Performance: 34.2022%
 
 ### 04: What can be optimized more?
 
+- Use better tiling strategy.
+- Use better memory access pattern.
+- Use wmma to improve the performance.
+
 # 04: 2D Block Tiling and 2D Thread Tiling Implementation
 
 ### 01: Profiling the kernel:
