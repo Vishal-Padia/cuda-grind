@@ -7,6 +7,7 @@
 #include "coalesced_memory_access.cu"
 #include "2d_block_tiling.cu"
 #include "2d_block_tiling_1d_thread_tiling.cu"
+#include "2d_block_tiling_2d_thread_tiling.cu"
 
 int main()
 {
@@ -53,7 +54,8 @@ int main()
             // {"Non-Coalesced Memory Access Implementation", launch_non_coalesced_memory<__half>},
             // {"Coalesced Memory Access Implementation", launch_coalesced_memory_access<__half>},
             // {"2D block tiling Implementation", launch_two_dim_kernel<__half>},
-            {"2D block tiling & 1D thread Tiling Implementation", launch_two_dim_tiling_one_dim_thread_kernel<__half>},
+            // {"2D block tiling & 1D thread Tiling Implementation", launch_two_dim_tiling_one_dim_thread_kernel<__half>},
+            {"2D block tiling & 2D thread Tiling Implementation", launch_two_dim_tiling_two_dim_thread_kernel<__half>},
         };
 
     for (auto const& gemm_fp16_kernel_launch_function :

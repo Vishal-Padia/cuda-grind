@@ -50,7 +50,8 @@ int main()
             // {"Non-Coalesced Memory Access Implementation", launch_non_coalesced_memory<float>},
             // {"Coalesced Memory Access Implementation", launch_coalesced_memory_access<float>},
             // {"2D block tiling Implementation", launch_two_dim_kernel<float>},
-            {"2D Block Tiling and 1D Block Thread Implementation", launch_two_dim_tiling_one_dim_thread_kernel<float>},
+            // {"2D Block Tiling and 1D Block Thread Implementation", launch_two_dim_tiling_one_dim_thread_kernel<float>},
+            {"2D block tiling & 2D thread Tiling Implementation", launch_two_dim_tiling_two_dim_thread_kernel<float>},
         };
 
     for (auto const& gemm_kernel_launch_function : gemm_kernel_launch_functions)
