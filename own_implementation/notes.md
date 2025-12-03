@@ -600,7 +600,7 @@ Custom GEMM VS cuBLAS GEMM Performance: 34.2022%
 
 ### 04: What can be optimized more?
 
-# 05: 2D Block Tiling, 2D Thread Tiling, and Matrix Transpose Access Implementation
+# 05: 2D Block Tiling, 2D Thread Tiling, with Vectorized Memory Access Implementation
 
 ### 01: Profiling the kernel:
 
@@ -610,7 +610,7 @@ Custom GEMM VS cuBLAS GEMM Performance: 34.2022%
 
 ### 04: What can be optimized more?
 
-# 06: 2D Block Tiling, 2D Warp Tiling, 2D Thread Tiling, Matrix Transpose with Vectorized Memory Access, and WMMA Implementation
+# 06: 2D Block Tiling and 2D Warp Tiling and 2D Thread Tiling and Vectorized Memory Access
 
 ### 01: Profiling the kernel:
 
