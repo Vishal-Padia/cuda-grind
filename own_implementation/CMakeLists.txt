@@ -48,6 +48,7 @@ add_library(
     2d_block_tiling.cu
     2d_block_tiling_1d_thread_tiling.cu
     2d_block_tiling_2d_thread_tiling.cu
+    2d_block_tiling_2d_thread_tiling_matrix_transpose_vectorized_mem_access.cu
 )
 
 # Add the include directory of the library to the include directories of the project

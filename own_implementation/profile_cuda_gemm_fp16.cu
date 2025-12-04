@@ -8,6 +8,7 @@
 #include "2d_block_tiling.cu"
 #include "2d_block_tiling_1d_thread_tiling.cu"
 #include "2d_block_tiling_2d_thread_tiling.cu"
+#include "2d_block_tiling_2d_thread_tiling_matrix_transpose_vectorized_mem_access.cu"
 
 int main()
 {
@@ -56,6 +57,7 @@ int main()
             // {"2D block tiling Implementation", launch_two_dim_kernel<__half>},
             // {"2D block tiling & 1D thread Tiling Implementation", launch_two_dim_tiling_one_dim_thread_kernel<__half>},
             {"2D block tiling & 2D thread Tiling Implementation", launch_two_dim_tiling_two_dim_thread_kernel<__half>},
+            // {"2D block tiling & 2D thread with Vectorized Memory Access Implementation", launch_gemm_2d_block_tiling_2d_thread_tiling_matrix_transpose_vec_mem_access<__half>},
         };
 
     for (auto const& gemm_fp16_kernel_launch_function :
