@@ -859,9 +859,9 @@ FP16:
 FP32:
 | My Implementation | LeiMao's Implementation |
 |------------------|-------------------------|
-| Latency: 4.74112 ms | Latency: 4.74112 ms |
-| Bandwidth: 42.4639 GB/s | Bandwidth: 42.4639 GB/s |
-| TFLOPS: 28.9887 TFLOPS | TFLOPS: 28.9887 TFLOPS |
+| Latency: 4.74579 ms | Latency: 4.74112 ms |
+| Bandwidth: 42.4221 GB/s | Bandwidth: 42.4639 GB/s |
+| TFLOPS: 28.9602 TFLOPS | TFLOPS: 28.9887 TFLOPS |
 
 ### 04: What can be optimized more?
 
