@@ -7,6 +7,7 @@
 #include "coalesced_memory_access.cu"
 #include "2d_block_tiling.cu"
 #include "2d_block_tiling_1d_thread_tiling.cu"
+#include "2d_block_tiling_2d_thread_tiling.cu"
 // #include "2d_block_tiling_2d_thread_tiling_matrix_transpose_vectorized_mem_access.cu"
 
 int main()
