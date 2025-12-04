@@ -31,13 +31,13 @@ __global__ void two_dim_tiling_two_dim_thread_kernel(size_t m, size_t n, size_t 
         #pragma unroll
         for(size_t k_i{0U}; k_i < BLOCK_TILE_SIZE_K; ++k_i)
         {
-            size_t A_thread_block_tile_row_idx{thread_tile_row_idx / (BLOCK_TILE_SIZE_X / THREAD_TILE_SIZE_X) * THREAD_TILE_SIZE_Y};
+            size_t A_thread_block_tile_row_idx{thread_linear_idx / (BLOCK_TILE_SIZE_X / THREAD_TILE_SIZE_X) * THREAD_TILE_SIZE_Y};
             size_t const A_thread_block_tile_col_idx{k_i};
 
             #pragma unroll
             for(size_t thread_tile_row_idx{0U}; thread_tile_row_idx < THREAD_TILE_SIZE_Y; ++thread_tile_row_idx)
             {
-                A_vals[thread_tile_row_idx] = A_thread_block_tile[A_thread_block_tile_row_idx + thread_tile_row_idx][A_thread_block_tile_col_idx + thread_tile_col_idx];
+                A_vals[thread_tile_row_idx] = A_thread_block_tile[A_thread_block_tile_row_idx + thread_tile_row_idx][A_thread_block_tile_col_idx];
             }
             
             size_t const B_thread_block_tile_row_idx{k_i};
@@ -70,7 +70,7 @@ __global__ void two_dim_tiling_two_dim_thread_kernel(size_t m, size_t n, size_t 
 
             if (C_row_idx < m && C_col_idx < n)
             {
-                C[C_row_idx * ldc + C_col_idx] alpha * C_thread_results[thread_tile_row_idx][thread_tile_col_idx] + beta * C[C_row_idx * ldc + C_col_idx];
+                C[C_row_idx * ldc + C_col_idx] = alpha * C_thread_results[thread_tile_row_idx][thread_tile_col_idx] + beta * C[C_row_idx * ldc + C_col_idx];
             }
         }
     }
