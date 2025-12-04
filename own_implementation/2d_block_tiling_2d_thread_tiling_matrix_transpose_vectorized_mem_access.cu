@@ -18,6 +18,11 @@ __device__ void load_data_from_global_memory_to_shared_memory_transposed_vectori
     static_assert(BLOCK_TILE_SIZE_K % NUM_VECTOR_UNITS == 0U);
     static_assert(BLOCK_TILE_SIZE_X % NUM_VECTOR_UNITS == 0U);
 
+    // Number of vectorized elements along K dimension for A tile loading
+    constexpr size_t VECTORIZED_BLOCK_TILE_SIZE_K{BLOCK_TILE_SIZE_K / NUM_VECTOR_UNITS};
+    static_assert(BLOCK_TILE_SIZE_K % NUM_VECTOR_UNITS == 0U);
+
+    // Number of vectorized elements along X dimension for B tile loading
     constexpr size_t VECTORIZED_BLOCK_TILE_SIZE_X{BLOCK_TILE_SIZE_X / NUM_VECTOR_UNITS};
     static_assert(BLOCK_TILE_SIZE_X % NUM_VECTOR_UNITS == 0U);
 
@@ -26,17 +31,20 @@ __device__ void load_data_from_global_memory_to_shared_memory_transposed_vectori
     static_assert((BLOCK_TILE_SIZE_Y + BLOCK_TILE_SKEW_SIZE_Y) * sizeof(T) % sizeof(VECTOR_TYPE) == 0U);
     static_assert((BLOCK_TILE_SIZE_X + BLOCK_TILE_SKEW_SIZE_X) * sizeof(T) % sizeof(VECTOR_TYPE) == 0U);
 
-    // load data from A on DRAM
+    // Load data from A on DRAM to A_thread_block_tile_transposed on shared memory.
+    // A is loaded row-by-row, then transposed when writing to shared memory.
     #pragma unroll
     for (size_t load_idx{0U}; load_idx < (BLOCK_TILE_SIZE_Y * VECTORIZED_BLOCK_TILE_SIZE_K + NUM_THREADS - 1U) / NUM_THREADS; ++load_idx)
     {
+        // Row index: which row of A tile this thread loads
         size_t const A_thread_block_tile_row_idx{(thread_linear_idx + load_idx * NUM_THREADS) / VECTORIZED_BLOCK_TILE_SIZE_K};
-        size_t const A_thread_block_tile_col_idx{(thread_linear_idx + load_idx * NUM_THREADS) / VECTORIZED_BLOCK_TILE_SIZE_K * NUM_VECTOR_UNITS};
+        // Col index: which vectorized column position (multiply by NUM_VECTOR_UNITS for actual col)
+        size_t const A_thread_block_tile_col_idx{(thread_linear_idx + load_idx * NUM_THREADS) % VECTORIZED_BLOCK_TILE_SIZE_K * NUM_VECTOR_UNITS};
 
         size_t const A_row_idx{blockIdx.y * BLOCK_TILE_SIZE_Y + A_thread_block_tile_row_idx};
         size_t const A_col_idx{thread_block_tile_idx * BLOCK_TILE_SIZE_K + A_thread_block_tile_col_idx};
 
-        // boundary check
+        // Boundary check and vectorized load
         int4 A_row_vector_vals{0, 0, 0, 0};
         if (A_row_idx < m && A_col_idx < k)
         {
@@ -44,9 +52,8 @@ __device__ void load_data_from_global_memory_to_shared_memory_transposed_vectori
         }
         if (A_col_idx + NUM_VECTOR_UNITS > k)
         {
-            // get invalid elements
+            // Mask out invalid elements beyond matrix boundary
             size_t const num_invalid_elements{A_col_idx + NUM_VECTOR_UNITS - k};
-            // mask invalid elem
             T* const A_row_vector_vals_ptr{reinterpret_cast<T*>(&A_row_vector_vals)};
             for (size_t i{0U}; i < num_invalid_elements; ++i)
             {
@@ -54,6 +61,7 @@ __device__ void load_data_from_global_memory_to_shared_memory_transposed_vectori
             }
         }
 
+        // Write to shared memory with transpose: A[row][col] -> A_transposed[col][row]
         if (A_thread_block_tile_row_idx < BLOCK_TILE_SIZE_Y && A_thread_block_tile_col_idx < BLOCK_TILE_SIZE_K)
         {
             for (size_t i{0U}; i < NUM_VECTOR_UNITS; ++i)
@@ -63,17 +71,19 @@ __device__ void load_data_from_global_memory_to_shared_memory_transposed_vectori
         }
     }
 
-    // load data from B to DRAM
+    // Load data from B on DRAM to B_thread_block_tile on shared memory (no transpose).
     #pragma unroll
     for (size_t load_idx{0U}; load_idx < (BLOCK_TILE_SIZE_K * VECTORIZED_BLOCK_TILE_SIZE_X + NUM_THREADS - 1U) / NUM_THREADS; ++load_idx)
     {
+        // Row index: which row of B tile this thread loads
         size_t const B_thread_block_tile_row_idx{(thread_linear_idx + load_idx * NUM_THREADS) / VECTORIZED_BLOCK_TILE_SIZE_X};
-        size_t const B_thread_block_tile_col_idx{(thread_linear_idx + load_idx * NUM_THREADS) / VECTORIZED_THREAD_TILE_SIZE_X + NUM_VECTOR_UNITS};
+        // Col index: modulo gives position within row, multiply by NUM_VECTOR_UNITS for actual col
+        size_t const B_thread_block_tile_col_idx{(thread_linear_idx + load_idx * NUM_THREADS) % VECTORIZED_BLOCK_TILE_SIZE_X * NUM_VECTOR_UNITS};
 
         size_t const B_row_idx{thread_block_tile_idx * BLOCK_TILE_SIZE_K + B_thread_block_tile_row_idx};
-        size_t const B_col_idx{blockIdx.x * BLOCK_TILE_SIZE_K + B_thread_block_tile_col_idx};
+        size_t const B_col_idx{blockIdx.x * BLOCK_TILE_SIZE_X + B_thread_block_tile_col_idx};
 
-        // boundary checks
+        // Boundary check and vectorized load
         int4 B_row_vector_vals{0, 0, 0, 0};
         if (B_row_idx < k && B_col_idx < n)
         {
@@ -82,17 +92,16 @@ __device__ void load_data_from_global_memory_to_shared_memory_transposed_vectori
 
         if (B_col_idx + NUM_VECTOR_UNITS > n)
         {
-            // invalid elem
+            // Mask out invalid elements beyond matrix boundary
             size_t const num_invalid_elements{B_col_idx + NUM_VECTOR_UNITS - n};
-            // mask out invalid elem
             T* const B_row_vector_vals_ptr{reinterpret_cast<T*>(&B_row_vector_vals)};
-
             for (size_t i{0U}; i < num_invalid_elements; ++i)
             {
                 B_row_vector_vals_ptr[NUM_VECTOR_UNITS - 1U - i] = static_cast<T>(0);
             }
         }
 
+        // Vectorized write to shared memory (no transpose for B)
         if (B_thread_block_tile_row_idx < BLOCK_TILE_SIZE_K && B_thread_block_tile_col_idx < BLOCK_TILE_SIZE_X)
         {
             *reinterpret_cast<int4*>(&B_thread_block_tile[B_thread_block_tile_row_idx][B_thread_block_tile_col_idx]) = B_row_vector_vals;
@@ -118,12 +127,13 @@ __global__ void gemm_2d_block_tiling_2d_thread_tiling_matrix_transpose_vec_mem_a
     T A_vals[THREAD_TILE_SIZE_Y] = {static_cast<T>(0)};
     T B_vals[THREAD_TILE_SIZE_X] = {static_cast<T>(0)};
 
-   constexpr size_t NUM_VECTOR_UNITS{sizeof(int4) / sizeof(T)};
-   static_assert(sizeof(int4) % sizeof(T) == 0U);
-   static_assert(BLOCK_TILE_SIZE_K % NUM_VECTOR_UNITS == 0U);
-   static_assert(BLOCK_TILE_SIZE_X % NUM_VECTOR_UNITS == 0U);
-   constexpr size_t VECTORIZED_BLOCK_TILE_SIZE_X{THREAD_TILE_SIZE_X / NUM_VECTOR_UNITS};
-   static_assert(THREAD_TILE_SIZE_X % NUM_VECTOR_UNITS == 0U);
+    constexpr size_t NUM_VECTOR_UNITS{sizeof(int4) / sizeof(T)};
+    static_assert(sizeof(int4) % sizeof(T) == 0U);
+    static_assert(BLOCK_TILE_SIZE_K % NUM_VECTOR_UNITS == 0U);
+    static_assert(BLOCK_TILE_SIZE_X % NUM_VECTOR_UNITS == 0U);
+    // Number of vectorized loads per thread tile row (for writing C back)
+    constexpr size_t VECTORIZED_THREAD_TILE_SIZE_X{THREAD_TILE_SIZE_X / NUM_VECTOR_UNITS};
+    static_assert(THREAD_TILE_SIZE_X % NUM_VECTOR_UNITS == 0U);
 
    for (size_t thread_block_tile_idx{0U}; thread_block_tile_idx < num_thread_block_tiles; ++thread_block_tile_idx)
    {
@@ -145,8 +155,9 @@ __global__ void gemm_2d_block_tiling_2d_thread_tiling_matrix_transpose_vec_mem_a
             size_t const B_thread_block_tile_row_idx{k_i};
             size_t const B_thread_block_tile_col_idx{thread_linear_idx % (BLOCK_TILE_SIZE_X / THREAD_TILE_SIZE_X) * THREAD_TILE_SIZE_X};
 
+            // Vectorized read from B_thread_block_tile to registers
             #pragma unroll
-            for (size_t thread_tile_col_vector_idx{0U}; thread_tile_col_vector_idx < VECTORIZED_BLOCK_TILE_SIZE_X; ++thread_tile_col_vector_idx)
+            for (size_t thread_tile_col_vector_idx{0U}; thread_tile_col_vector_idx < VECTORIZED_THREAD_TILE_SIZE_X; ++thread_tile_col_vector_idx)
             {
                 *reinterpret_cast<int4*>(&B_vals[thread_tile_col_vector_idx * NUM_VECTOR_UNITS]) = *reinterpret_cast<int4 const*>(&B_thread_block_tile[B_thread_block_tile_row_idx][B_thread_block_tile_col_idx + thread_tile_col_vector_idx * NUM_VECTOR_UNITS]);
             }
@@ -162,32 +173,34 @@ __global__ void gemm_2d_block_tiling_2d_thread_tiling_matrix_transpose_vec_mem_a
         __syncthreads();
    }
 
-   // vectorized writing to DRAM
-   for (size_t thread_tile_row_idx{0U}; thread_tile_row_idx < THREAD_TILE_SIZE_Y; ++thread_tile_row_idx)
-   {
-        for (size_t thread_tile_col_vector_idx{0U}; thread_tile_col_vector_idx < VECTORIZED_BLOCK_TILE_SIZE_X; ++thread_tile_col_vector_idx)
+    // Vectorized writing results to DRAM
+    for (size_t thread_tile_row_idx{0U}; thread_tile_row_idx < THREAD_TILE_SIZE_Y; ++thread_tile_row_idx)
+    {
+        for (size_t thread_tile_col_vector_idx{0U}; thread_tile_col_vector_idx < VECTORIZED_THREAD_TILE_SIZE_X; ++thread_tile_col_vector_idx)
         {
             size_t const C_row_idx{blockIdx.y * BLOCK_TILE_SIZE_Y + thread_linear_idx / (BLOCK_TILE_SIZE_X / THREAD_TILE_SIZE_X) * THREAD_TILE_SIZE_Y + thread_tile_row_idx};
-            size_t const C_col_idx{blockIdx.x * BLOCK_TILE_SIZE_X + thread_linear_idx % (BLOCK_TILE_SIZE_X / THREAD_TILE_SIZE_X) * THREAD_TILE_SIZE_X + thread_tile_col_vector_idx + NUM_VECTOR_UNITS};
+            // Column offset within thread tile: thread_tile_col_vector_idx * NUM_VECTOR_UNITS (not +)
+            size_t const C_col_idx{blockIdx.x * BLOCK_TILE_SIZE_X + thread_linear_idx % (BLOCK_TILE_SIZE_X / THREAD_TILE_SIZE_X) * THREAD_TILE_SIZE_X + thread_tile_col_vector_idx * NUM_VECTOR_UNITS};
 
-            // vectorized read from C
+            // Vectorized read from C
             int4 C_row_vector_vals{*reinterpret_cast<int4 const*>(&C[C_row_idx * ldc + C_col_idx])};
 
-            // vectorized read from C_thread_results
+            // Vectorized read from C_thread_results
             int4 const C_thread_results_row_vector_vals{*reinterpret_cast<int4 const*>(&C_thread_results[thread_tile_row_idx][thread_tile_col_vector_idx * NUM_VECTOR_UNITS])};
 
+            // Compute alpha * result + beta * C
             for (size_t i{0U}; i < NUM_VECTOR_UNITS; ++i)
             {
                 reinterpret_cast<T*>(&C_row_vector_vals)[i] = alpha * reinterpret_cast<T const*>(&C_thread_results_row_vector_vals)[i] + beta * reinterpret_cast<T const*>(&C_row_vector_vals)[i];
             }
 
-            // vectorized write to C
+            // Vectorized write to C
             if (C_row_idx < m && C_col_idx < n)
             {
                 *reinterpret_cast<int4*>(&C[C_row_idx * ldc + C_col_idx]) = C_row_vector_vals;
             }
         }
-   }
+    }
 }
 
 template <typename T>
@@ -219,7 +232,7 @@ void launch_gemm_2d_block_tiling_2d_thread_tiling_matrix_transpose_vec_mem_acces
         (static_cast<unsigned int>(m) + BLOCK_TILE_SIZE_Y - 1U) /
             BLOCK_TILE_SIZE_Y,
         1U};
-    gemm_v05_vectorized<T, BLOCK_TILE_SIZE_X, BLOCK_TILE_SIZE_Y,
+    gemm_2d_block_tiling_2d_thread_tiling_matrix_transpose_vec_mem_access<T, BLOCK_TILE_SIZE_X, BLOCK_TILE_SIZE_Y,
                         BLOCK_TILE_SIZE_K, THREAD_TILE_SIZE_X,
                         THREAD_TILE_SIZE_Y>
         <<<grid_dim, block_dim, 0U, stream>>>(m, n, k, *alpha, A, lda, B, ldb,
