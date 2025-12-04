@@ -65,8 +65,8 @@ __global__ void two_dim_tiling_two_dim_thread_kernel(size_t m, size_t n, size_t 
     {
         for(size_t thread_tile_col_idx{0U}; thread_tile_col_idx < THREAD_TILE_SIZE_X; ++thread_tile_col_idx)
         {
-            size_t const C_row_idx{blockIdx.y * BLOCK_TILE_SIZE_Y + threadIdx.x / (BLOCK_TILE_SIZE_X / THREAD_TILE_SIZE_X) * THREAD_TILE_SIZE_Y + thread_tile_row_idx};
-            size_t const C_col_idx{blockIdx.x * BLOCK_TILE_SIZE_X + threadIdx.y / (BLOCK_TILE_SIZE_Y / THREAD_TILE_SIZE_Y) * THREAD_TILE_SIZE_X + thread_tile_col_idx};
+            size_t const C_row_idx{blockIdx.y * BLOCK_TILE_SIZE_Y + thread_linear_idx / (BLOCK_TILE_SIZE_X / THREAD_TILE_SIZE_X) * THREAD_TILE_SIZE_Y + thread_tile_row_idx}; 
+            size_t const C_col_idx{blockIdx.x * BLOCK_TILE_SIZE_X + thread_linear_idx % (BLOCK_TILE_SIZE_X / THREAD_TILE_SIZE_X) * THREAD_TILE_SIZE_X + thread_tile_col_idx};
 
             if (C_row_idx < m && C_col_idx < n)
             {
