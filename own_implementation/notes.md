@@ -584,6 +584,20 @@ Effective TFLOPS: 12.6123 TFLOPS
 Custom GEMM VS cuBLAS GEMM Performance: 34.2022%
 ```
 
+FP16:
+| My Implementation | LeiMao's Implementation |
+|------------------|-------------------------|
+| Latency: 22.2236 ms | Latency: 22.2361 ms |
+| Bandwidth: 9.05915 GB/s | Bandwidth: 9.05404 GB/s |
+| TFLOPS: 6.18438 TFLOPS | TFLOPS: 6.18089 TFLOPS |
+
+FP32:
+| My Implementation | LeiMao's Implementation |
+|------------------|-------------------------|
+| Latency: 10.9152 ms | Latency: 10.8972 ms |
+| Bandwidth: 18.4447 GB/s | Bandwidth: 18.4751 GB/s |
+| TFLOPS: 12.5916 TFLOPS | TFLOPS: 12.6123 TFLOPS |
+
 ### 04: What can be optimized more?
 
 - Use better tiling strategy.
@@ -594,21 +608,265 @@ Custom GEMM VS cuBLAS GEMM Performance: 34.2022%
 
 ### 01: Profiling the kernel:
 
+Fp16:
+- 73.1% of the time went in cudaLaunchKernel (launching the kernel)
+- 9.4% of the time went in cudaStreamCreate (allocating a new asynchronous stream)
+- 7.5% of the time went in cudaHostAlloc (allocating pinned host memory)
+- 3.5% of the time went in cudaStreamSynchronize (waiting for the kernel to finish)
+
+Fp32:
+- 41.7% of the time went in cudaHostAlloc (allocating pinned host memory)
+- 26.3% of the time went in cudaStreamCreate (allocating a new asynchronous stream)
+- 14.8% of the time went in cudaFreeHost (freeing pinned host memory)
+- 4.4% of the timt went in cudaMemcpy (copying data from host to device)
+
 ### 02: Benchmarking the kernel:
+
+FP16:
+```bash
+Device Name: NVIDIA GeForce RTX 4080 SUPER
+Memory Size: 15.57 GB
+Peak Bandwitdh: 736.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+2D block tiling & 2D thread Tiling Implementation
+cuBLAS GEMM Kernel Performance
+Latency: 0.711104 ms
+Effective Bandwidth: 283.118 GB/s
+Effective TFLOPS: 193.275 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 23.128 ms
+Effective Bandwidth: 8.70489 GB/s
+Effective TFLOPS: 5.94253 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 3.07465%
+```
+
+FP32:
+```bash
+Device Name: NVIDIA GeForce RTX 4080 SUPER
+Memory Size: 15.57 GB
+Peak Bandwitdh: 736.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+2D block tiling & 2D thread Tiling Implementation
+cuBLAS GEMM Kernel Performance
+Latency: 3.73904 ms
+Effective Bandwidth: 53.8445 GB/s
+Effective TFLOPS: 36.7578 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 6.62883 ms
+Effective Bandwidth: 30.3714 GB/s
+Effective TFLOPS: 20.7335 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 56.4057%
+```
 
 ### 03: Comparing the results with LeiMao's implementation:
 
+FP16:
+```bash
+Device Name: NVIDIA GeForce RTX 4080 SUPER
+Memory Size: 15.57 GB
+Peak Bandwitdh: 736.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Custom GEMM Kernel V04
+cuBLAS GEMM Kernel Performance
+Latency: 0.704928 ms
+Effective Bandwidth: 285.599 GB/s
+Effective TFLOPS: 194.969 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 23.1535 ms
+Effective Bandwidth: 8.6953 GB/s
+Effective TFLOPS: 5.93599 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 3.04458%
+```
+
+FP32:
+```bash
+Device Name: NVIDIA GeForce RTX 4080 SUPER
+Memory Size: 15.57 GB
+Peak Bandwitdh: 736.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Custom GEMM Kernel V04
+cuBLAS GEMM Kernel Performance
+Latency: 3.74038 ms
+Effective Bandwidth: 53.8251 GB/s
+Effective TFLOPS: 36.7446 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 6.72154 ms
+Effective Bandwidth: 29.9525 GB/s
+Effective TFLOPS: 20.4476 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 55.6478%
+```
+
+FP16:
+| My Implementation | LeiMao's Implementation |
+|------------------|-------------------------|
+| Latency: 23.128 ms | Latency: 23.1535 ms |
+| Bandwidth: 8.70489 GB/s | Bandwidth: 8.6953 GB/s |
+| TFLOPS: 5.94253 TFLOPS | TFLOPS: 5.93599 TFLOPS |
+
+FP32:
+| My Implementation | LeiMao's Implementation |
+|------------------|-------------------------|
+| Latency: 6.20898 ms | Latency: 6.72154 ms |
+| Bandwidth: 30.3714 GB/s | Bandwidth: 29.9525 GB/s |
+| TFLOPS: 20.7335 TFLOPS | TFLOPS: 20.4476 TFLOPS |
+
 ### 04: What can be optimized more?
+
+- Vectorized memory access
+- Warp Tiling
+- Transpose the matrix A in the shared memory
+- WMMA implementation
 
 # 05: 2D Block Tiling, 2D Thread Tiling, with Vectorized Memory Access Implementation
 
 ### 01: Profiling the kernel:
 
+Fp16:
+- 83.4% of the time went in cudaLaunchKernel (launching the kernel)
+- 5.8% of the time went in cudaStreamCreate (allocating a new asynchronous stream)
+- 4.9% of the time went in cudaHostAlloc (allocating pinned host memory)
+- 1.9% of the time went in cudaStreamSynchronize (waiting for the kernel to finish)
+
+Fp32:
+- 41.1% of the time went in cudaHostAlloc (allocating pinned host memory)
+- 27.1% of the time went in cudaStreamCreate (allocating a new asynchronous stream)
+- 14.8% of the time went in cudaFreeHost (freeing pinned host memory)
+- 4.5% of the time went in cudaMemcpy (copying data from host to device)
+
 ### 02: Benchmarking the kernel:
+
+FP16:
+```bash
+Device Name: NVIDIA GeForce RTX 4080 SUPER
+Memory Size: 15.57 GB
+Peak Bandwitdh: 736.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+2D block tiling & 2D thread with Vectorized Memory Access Implementation
+cuBLAS GEMM Kernel Performance
+Latency: 0.724512 ms
+Effective Bandwidth: 277.879 GB/s
+Effective TFLOPS: 189.699 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 17.4932 ms
+Effective Bandwidth: 11.5089 GB/s
+Effective TFLOPS: 7.85671 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 4.14168%
+```
+
+FP32:
+```bash
+Device Name: NVIDIA GeForce RTX 4080 SUPER
+Memory Size: 15.57 GB
+Peak Bandwitdh: 736.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+2D block tiling & 2D thread with Vectorized Memory Access Implementation
+cuBLAS GEMM Kernel Performance
+Latency: 3.81859 ms
+Effective Bandwidth: 52.7227 GB/s
+Effective TFLOPS: 35.9921 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 4.74579 ms
+Effective Bandwidth: 42.4221 GB/s
+Effective TFLOPS: 28.9602 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 80.4627%
+```
 
 ### 03: Comparing the results with LeiMao's implementation:
 
+FP16:
+```bash
+Device Name: NVIDIA GeForce RTX 4080 SUPER
+Memory Size: 15.57 GB
+Peak Bandwitdh: 736.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Custom GEMM Kernel V05 Vectorized
+cuBLAS GEMM Kernel Performance
+Latency: 0.716512 ms
+Effective Bandwidth: 280.981 GB/s
+Effective TFLOPS: 191.817 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 17.4907 ms
+Effective Bandwidth: 11.5105 GB/s
+Effective TFLOPS: 7.85785 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 4.09654%
+```
+
+FP32:
+```bash
+Device Name: NVIDIA GeForce RTX 4080 SUPER
+Memory Size: 15.57 GB
+Peak Bandwitdh: 736.064 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Custom GEMM Kernel V05 Vectorized
+cuBLAS GEMM Kernel Performance
+Latency: 3.79782 ms
+Effective Bandwidth: 53.011 GB/s
+Effective TFLOPS: 36.1889 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 4.74112 ms
+Effective Bandwidth: 42.4639 GB/s
+Effective TFLOPS: 28.9887 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 80.1039%
+```
+
+FP16:
+| My Implementation | LeiMao's Implementation |
+|------------------|-------------------------|
+| Latency: 17.4932 ms | Latency: 17.4907 ms |
+| Bandwidth: 11.5089 GB/s | Bandwidth: 11.5105 GB/s |
+| TFLOPS: 7.85671 TFLOPS | TFLOPS: 7.85785 TFLOPS |
+
+FP32:
+| My Implementation | LeiMao's Implementation |
+|------------------|-------------------------|
+| Latency: 4.74112 ms | Latency: 4.74112 ms |
+| Bandwidth: 42.4639 GB/s | Bandwidth: 42.4639 GB/s |
+| TFLOPS: 28.9887 TFLOPS | TFLOPS: 28.9887 TFLOPS |
+
 ### 04: What can be optimized more?
+
+- Warp Tiling
+- WMMA implementation
 
 # 06: 2D Block Tiling and 2D Warp Tiling and 2D Thread Tiling and Vectorized Memory Access
 
