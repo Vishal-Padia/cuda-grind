@@ -8,7 +8,8 @@
 #include "2d_block_tiling.cu"
 #include "2d_block_tiling_1d_thread_tiling.cu"
 #include "2d_block_tiling_2d_thread_tiling.cu"
-// #include "2d_block_tiling_2d_thread_tiling_matrix_transpose_vectorized_mem_access.cu"
+#include "2d_block_tiling_2d_thread_tiling_matrix_transpose_vectorized_mem_access.cu"
+#include "2d_block_tiling_2d_warp_tiling_2d_thread_tiling_matrix_transpose_vectorized_memory_access"
 
 int main()
 {
@@ -54,7 +55,8 @@ int main()
             // {"2D block tiling Implementation", launch_two_dim_kernel<float>},
             // {"2D Block Tiling and 1D Block Thread Implementation", launch_two_dim_tiling_one_dim_thread_kernel<float>},
             // {"2D block tiling & 2D thread Tiling Implementation", launch_two_dim_tiling_two_dim_thread_kernel<float>},
-            {"2D block tiling & 2D thread with Vectorized Memory Access Implementation", launch_gemm_2d_block_tiling_2d_thread_tiling_matrix_transpose_vec_mem_access<float>},
+            // {"2D block tiling & 2D thread with Vectorized Memory Access Implementation", launch_gemm_2d_block_tiling_2d_thread_tiling_matrix_transpose_vec_mem_access<float>},
+            {"2D block tiling & 2D Warp Tiling & 2D thread tiling Matrix Transpose with Vectorized Memory Access Implementation", launch_two_dim_tiling_two_dim_warp_tiling_two_dim_thread_matrix_transpose_vec_memory_access_kernel<float>}
         };
 
     for (auto const& gemm_kernel_launch_function : gemm_kernel_launch_functions)

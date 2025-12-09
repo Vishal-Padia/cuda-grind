@@ -54,7 +54,7 @@ int main()
             // {"Custom GEMM Kernel V03", launch_gemm_kernel_v03<__half>},
             // {"Custom GEMM Kernel V03 Vectorized",
             //  launch_gemm_kernel_v03_vectorized<__half>},
-            {"Custom GEMM Kernel V04", launch_gemm_kernel_v04<__half>},
+            // {"Custom GEMM Kernel V04", launch_gemm_kernel_v04<__half>},
             // {"Custom GEMM Kernel V04 Vectorized",
             //  launch_gemm_kernel_v04_vectorized<__half>},
             // {"Custom GEMM Kernel V05", launch_gemm_kernel_v05<__half>},
