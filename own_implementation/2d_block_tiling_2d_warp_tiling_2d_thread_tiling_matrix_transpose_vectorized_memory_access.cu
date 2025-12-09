@@ -4,25 +4,28 @@
 #include "cuda_gemm_utils.cuh"
 #include "cuda_gemm_utils.hpp"
 
-template <typename T, size_t BLOCK_TILE_SIZE_X, size_t BLOCK_TILE_SIZE_Y, size_t BLOCK_TILE_SIZE_K, size_t WARP_TILE_SIZE_X, WARP_TILE_SIZE_Y, size_t THREAD_TILE_SIZE_X, size_t THREAD_TILE_SIZE_Y, size_t NUM_THREAD_TILES_PER_WARP_X, NUM_THREAD_TILES_PER_WARP_Y>
+template <typename T, size_t BLOCK_TILE_SIZE_X, size_t BLOCK_TILE_SIZE_Y, size_t BLOCK_TILE_SIZE_K, size_t WARP_TILE_SIZE_X, size_t WARP_TILE_SIZE_Y, size_t THREAD_TILE_SIZE_X, size_t THREAD_TILE_SIZE_Y, size_t NUM_THREADS_PER_WARP_X, size_t NUM_THREADS_PER_WARP_Y>
 __global__ void two_dim_tiling_two_dim_warp_tiling_two_dim_thread_matrix_transpose_vec_memory_access_kernel(size_t m, size_t n, size_t k, T alpha, T const* A, size_t lda, T const* B, size_t ldb, T beta, T* C, size_t ldc)
 {
-    static_assert(NUM_THREAD_TILES_PER_WARP_X * NUM_THREAD_TILES_PER_WARP_Y == 32U);
+    static_assert(NUM_THREADS_PER_WARP_X * NUM_THREADS_PER_WARP_Y == 32U);
 
-    constexpr size_t NUM_WARPS_X = BLOCK_TILE_SIZE_X / WARP_TILE_SIZE_X;
+    constexpr size_t NUM_WARPS_X{BLOCK_TILE_SIZE_X / WARP_TILE_SIZE_X};
     static_assert(BLOCK_TILE_SIZE_X % WARP_TILE_SIZE_X == 0U);
 
-    constexpr size_t NUM_WARPS_Y = BLOCK_TILE_SIZE_Y / WARP_TILE_SIZE_Y;
+    constexpr size_t NUM_WARPS_Y{BLOCK_TILE_SIZE_Y / WARP_TILE_SIZE_Y};
     static_assert(BLOCK_TILE_SIZE_Y % WARP_TILE_SIZE_Y == 0U);
 
-    constexpr unsigned int NUM_THREAD_TILES_PER_WARP_X = WARP_TILE_SIZE_X / (THREAD_TILE_SIZE_X * NUM_THREAD_PER_WARP_X);
+    constexpr unsigned int NUM_THREAD_TILES_PER_WARP_X = WARP_TILE_SIZE_X / (THREAD_TILE_SIZE_X * NUM_THREADS_PER_WARP_X);
 
     constexpr unsigned int NUM_THREAD_TILES_PER_WARP_Y = WARP_TILE_SIZE_Y / (THREAD_TILE_SIZE_Y * NUM_THREADS_PER_WARP_Y);
 
     static_assert(WARP_TILE_SIZE_X % (THREAD_TILE_SIZE_Y * NUM_THREADS_PER_WARP_X) == 0U);
     static_assert(WARP_TILE_SIZE_Y % (THREAD_TILE_SIZE_X * NUM_THREADS_PER_WARP_Y) == 0U);
 
-    constexpr size_t NUM_THREADS = NUM_THREADS_X * NUM_THREADS_Y;
+    constexpr unsigned int NUM_THREADS_X{NUM_WARPS_X * NUM_THREADS_PER_WARP_X};
+    constexpr unsigned int NUM_THREADS_Y{NUM_WARPS_Y * NUM_THREADS_PER_WARP_Y};
+
+    constexpr size_t NUM_THREADS{NUM_THREADS_X * NUM_THREADS_Y};
     
     // caching tiles into shared memory
     __shared__ T A_thread_block_tile_transposed[BLOCK_TILE_SIZE_K][BLOCK_TILE_SIZE_Y];
@@ -31,27 +34,27 @@ __global__ void two_dim_tiling_two_dim_warp_tiling_two_dim_thread_matrix_transpo
     T A_vals[NUM_THREAD_TILES_PER_WARP_Y][THREAD_TILE_SIZE_Y] = {static_cast<T>(0)};
     T B_vals[NUM_THREAD_TILES_PER_WARP_X][THREAD_TILE_SIZE_X] = {static_cast<T>(0)};
 
-    size_t const thread_linear_idx = threadIdx.y * blockDim.x + threadIdx.x;
-    size_t const warp_linear_idx = thread_linear_idx / 32U;
-    size_t const warp_row_idx = warp_linear_idx / NUM_WARPS_X;
-    size_t const warp_col_idx = warp_linear_idx % NUM_WARPS_X;
-    size_t const thread_linear_idx_in_warp = thread_linear_idx % 32U;
-    size_t const thread_linear_row_idx_in_warp = thread_linear_col_idx_in_warp / NUM_THREADS_PER_WARP_X;
-    size_t const thread_linear_col_idx_in_warp = thread_linear_idx_in_warp % NUM_THREADS_PER_WARP_X;
+    size_t const thread_linear_idx{threadIdx.y * blockDim.x + threadIdx.x};
+    size_t const warp_linear_idx{thread_linear_idx / 32U};
+    size_t const warp_row_idx{warp_linear_idx / NUM_WARPS_X};
+    size_t const warp_col_idx{warp_linear_idx % NUM_WARPS_X};
+    size_t const thread_linear_idx_in_warp{thread_linear_idx % 32U};
+    size_t const thread_linear_row_idx_in_warp{thread_linear_idx_in_warp / NUM_THREADS_PER_WARP_X};
+    size_t const thread_linear_col_idx_in_warp{thread_linear_idx_in_warp % NUM_THREADS_PER_WARP_X};
 
-    size_t const num_thread_block_tiles = (k + BLOCK_TILE_SIZE_K - 1) / BLOCK_TILE_SIZE_K;
+    size_t const num_thread_block_tiles{(k + BLOCK_TILE_SIZE_K - 1) / BLOCK_TILE_SIZE_K};
 
     T C_thread_results[NUM_THREAD_TILES_PER_WARP_Y][NUM_THREAD_TILES_PER_WARP_X][THREAD_TILE_SIZE_Y][THREAD_TILE_SIZE_X] = {static_cast<T>(0)};
     
-    constexpr size_t NUM_VECTOR_UNITS = sizeof(int4) / sizeof(T);
+    constexpr size_t NUM_VECTOR_UNITS{sizeof(int4) / sizeof(T)};
     static_assert(sizeof(int4) % sizeof(T) == 0U);
     
     // K and X dimensions must be divisible by vectorization width
     static_assert(BLOCK_TILE_SIZE_K % NUM_VECTOR_UNITS == 0U);
     static_assert(BLOCK_TILE_SIZE_X % NUM_VECTOR_UNITS == 0U);
 
-    constexpr size_t VECTORIZED_BLOCK_TILE_SIZE_Y = THREAD_TILE_SIZE_X / NUM_VECTOR_UNITS;
-    constexpr size_t VECTORIZED_BLOCK_TILE_SIZE_X = THREAD_TILE_SIZE_Y / NUM_VECTOR_UNITS;
+    constexpr size_t VECTORIZED_THREAD_TILE_SIZE_Y{THREAD_TILE_SIZE_X / NUM_VECTOR_UNITS};
+    constexpr size_t VECTORIZED_THREAD_TILE_SIZE_X{THREAD_TILE_SIZE_Y / NUM_VECTOR_UNITS};
 
     // for loop
     // in each iter we load a block_tile_size_k
@@ -73,7 +76,7 @@ __global__ void two_dim_tiling_two_dim_warp_tiling_two_dim_thread_matrix_transpo
                 size_t const A_thread_block_tile_col_idx{k_i};
 
                 #pragma unroll
-                for (size_t thread_tile_y_vector_idx{0U}; thread_tile_repeat_col_idx < VECTORIZED_BLOCK_TILE_SIZE_Y; ++thread_tile_y_vector_idx)
+                for (size_t thread_tile_y_vector_idx{0U}; thread_tile_y_vector_idx < VECTORIZED_THREAD_TILE_SIZE_Y; ++thread_tile_y_vector_idx)
                 {
                     *reinterpret_cast<int4*>(&A_vals[thread_tile_repeat_row_idx][thread_tile_y_vector_idx * NUM_VECTOR_UNITS]) = *reinterpret_cast<int4 const*>(&A_thread_block_tile_transposed[A_thread_block_tile_col_idx][A_thread_block_tile_row_idx + thread_tile_y_vector_idx * NUM_VECTOR_UNITS]);
                 }
@@ -82,12 +85,12 @@ __global__ void two_dim_tiling_two_dim_warp_tiling_two_dim_thread_matrix_transpo
             for(size_t thread_tile_repeat_col_idx{0U}; thread_tile_repeat_col_idx < NUM_THREAD_TILES_PER_WARP_X; ++thread_tile_repeat_col_idx)
             {
                 size_t const B_thread_block_tile_row_idx{k_i};
-                size_t const B_thread_block_tile_col_idx{warp_col_idx * WARP_TILE_SIZE_X + thread_tile_repeat_col_idx * (WARP_TILE_SIZE_X / NUM_THREAD_PER_WARP_X) + thread_linear_col_idx_in_warp * THREAD_TILE_SIZE_X};
+                size_t const B_thread_block_tile_col_idx{warp_col_idx * WARP_TILE_SIZE_X + thread_tile_repeat_col_idx * (WARP_TILE_SIZE_X / NUM_THREADS_PER_WARP_X) + thread_linear_col_idx_in_warp * THREAD_TILE_SIZE_X};
 
                 #pragma unroll
-                for(size_t thread_tile_x_vector_idx{0U}; thread_tile_repeat_col_idx < VECTORIZED_BLOCK_TILE_SIZE_X; ++thread_tile_x_vector_idx)
+                for(size_t thread_tile_x_vector_idx{0U}; thread_tile_x_vector_idx < VECTORIZED_THREAD_TILE_SIZE_X; ++thread_tile_x_vector_idx)
                 {
-                    *reinterpret_cast<int4*>(&B[thread_tile_repeat_col_idx][thread_tile_x_vector_idx * NUM_VECTOR_UNITS]) = *reinterpret_cast<int4 const*>(&B_thread_block_tile[B_thread_block_tile_row_idx][B_thread_block_tile_col_idx + thread_tile_x_vector_idx * NUM_VECTOR_UNITS]);
+                    *reinterpret_cast<int4*>(&B_vals[thread_tile_repeat_col_idx][thread_tile_x_vector_idx * NUM_VECTOR_UNITS]) = *reinterpret_cast<int4 const*>(&B_thread_block_tile[B_thread_block_tile_row_idx][B_thread_block_tile_col_idx + thread_tile_x_vector_idx * NUM_VECTOR_UNITS]);
                 }
             }
 
@@ -129,7 +132,7 @@ __global__ void two_dim_tiling_two_dim_warp_tiling_two_dim_thread_matrix_transpo
                     // boundary check
                     if (C_row_idx < m && C_col_idx < n)
                     {
-                        int4 C_vals{reinterpret_cast<int4 const*>(&C[C_row_idx * ldc + C_col_idx])};
+                        int4 C_vals{*reinterpret_cast<int4 const*>(&C[C_row_idx * ldc + C_col_idx])};
 
                         for(size_t i{0U}; i < NUM_VECTOR_UNITS; ++i)
                         {
