@@ -872,11 +872,131 @@ FP32:
 
 ### 01: Profiling the kernel:
 
+Fp16:
+- 85.1% of the time went in cudaLaunchKernel (launching the kernel)
+- 4.8% of the time went in cudaStreamCreate (allocating a new asynchronous stream)
+- 4.2% of the time went in cudaHostAlloc (allocating pinned host memory)
+- 1.9% of the time went in cudaStreamSynchronize (waiting for the kernel to finish)
+
+Fp32:
+- 41.2% of the time went in cudaHostAlloc (allocating pinned host memory)
+- 24.1% of the time went in cudaStreamCreate (allocating a new asynchronous stream)
+- 16.4% of the time went in cudaFreeHost (freeing pinned host memory)
+- 6.2% of the time went in cudaMemcpy (copying data from host to device)
+
 ### 02: Benchmarking the kernel:
+
+FP16:
+```bash
+Device Name: NVIDIA A10G
+Memory Size: 21.9754 GB
+Peak Bandwitdh: 600.096 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+2D block tiling & 2D Warp Tiling & 2D thread tiling Matrix Transpose with Vectorized Memory Access Implementation
+cuBLAS GEMM Kernel Performance
+Latency: 2.21184 ms
+Effective Bandwidth: 91.0222 GB/s
+Effective TFLOPS: 62.1378 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 4.96538 ms
+Effective Bandwidth: 40.5461 GB/s
+Effective TFLOPS: 27.6795 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 44.5453%
+```
+
+FP32:
+```bash
+Device Name: NVIDIA A10G
+Memory Size: 21.9754 GB
+Peak Bandwitdh: 600.096 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+2D block tiling & 2D Warp Tiling & 2D thread tiling Matrix Transpose with Vectorized Memory Access Implementation
+cuBLAS GEMM Kernel Performance
+Latency: 5.49062 ms
+Effective Bandwidth: 36.6673 GB/s
+Effective TFLOPS: 25.0316 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 6.8489 ms
+Effective Bandwidth: 29.3955 GB/s
+Effective TFLOPS: 20.0673 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 80.168%
+```
 
 ### 03: Comparing the results with LeiMao's implementation:
 
+FP16:
+```bash
+Device Name: NVIDIA A10G
+Memory Size: 21.9754 GB
+Peak Bandwitdh: 600.096 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Custom GEMM Kernel V06 Vectorized
+cuBLAS GEMM Kernel Performance
+Latency: 2.21082 ms
+Effective Bandwidth: 91.0644 GB/s
+Effective TFLOPS: 62.1666 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 4.96333 ms
+Effective Bandwidth: 40.5628 GB/s
+Effective TFLOPS: 27.6909 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 44.543%
+```
+
+FP32:
+```bash
+Device Name: NVIDIA A10G
+Memory Size: 21.9754 GB
+Peak Bandwitdh: 600.096 GB/s
+
+Matrix Size: M = 4096 N = 4096 K = 4096
+Matrix A: 4096 x 4096 Leading Dimension Size = 4096
+Matrix B: 4096 x 4096 Leading Dimension Size = 4096
+Matrix C: 4096 x 4096 Leading Dimension Size = 4096
+
+Custom GEMM Kernel V06 Vectorized
+cuBLAS GEMM Kernel Performance
+Latency: 5.48147 ms
+Effective Bandwidth: 36.7286 GB/s
+Effective TFLOPS: 25.0734 TFLOPS
+Custom GEMM Kernel Performance
+Latency: 6.99392 ms
+Effective Bandwidth: 28.7859 GB/s
+Effective TFLOPS: 19.6512 TFLOPS
+Custom GEMM VS cuBLAS GEMM Performance: 78.3748%
+```
+
+FP16:
+| My Implementation | LeiMao's Implementation |
+|------------------|-------------------------|
+| Latency: 4.96538 ms | Latency: 4.96333 ms |
+| Bandwidth: 40.5461 GB/s | Bandwidth: 40.5628 GB/s |
+| TFLOPS: 27.6795 TFLOPS | TFLOPS: 27.6909 TFLOPS |
+
+FP32:
+| My Implementation | LeiMao's Implementation |
+|------------------|-------------------------|
+| Latency: 6.8489 ms | Latency: 6.99392 ms |
+| Bandwidth: 29.3955 GB/s | Bandwidth: 28.7859 GB/s |
+| TFLOPS: 20.0673 TFLOPS | TFLOPS: 19.6512 TFLOPS |
+
 ### 04: What can be optimized more?
+
+- Tensor Core implementation
 
 # 07: 2D Block Tiling, 2D Warp Tiling, 2D Thread Tiling, Matrix Transpose with Vectorized Memory Access, and WMMA Implementation
 

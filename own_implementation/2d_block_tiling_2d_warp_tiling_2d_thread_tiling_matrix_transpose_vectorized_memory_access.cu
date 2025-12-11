@@ -54,7 +54,9 @@ __global__ void two_dim_tiling_two_dim_warp_tiling_two_dim_thread_matrix_transpo
     static_assert(BLOCK_TILE_SIZE_X % NUM_VECTOR_UNITS == 0U);
 
     constexpr size_t VECTORIZED_THREAD_TILE_SIZE_Y{THREAD_TILE_SIZE_X / NUM_VECTOR_UNITS};
+    static_assert(THREAD_TILE_SIZE_X % NUM_VECTOR_UNITS == 0U);
     constexpr size_t VECTORIZED_THREAD_TILE_SIZE_X{THREAD_TILE_SIZE_Y / NUM_VECTOR_UNITS};
+    static_assert(THREAD_TILE_SIZE_Y % NUM_VECTOR_UNITS == 0U);
 
     // for loop
     // in each iter we load a block_tile_size_k
@@ -72,7 +74,7 @@ __global__ void two_dim_tiling_two_dim_warp_tiling_two_dim_thread_matrix_transpo
             #pragma unroll
             for(size_t thread_tile_repeat_row_idx{0U}; thread_tile_repeat_row_idx < NUM_THREAD_TILES_PER_WARP_Y; ++thread_tile_repeat_row_idx)
             {
-                size_t const A_thread_block_tile_row_idx{warp_row_idx * WARP_TILE_SIZE_Y + thread_tile_repeat_row_idx * (WARP_TILE_SIZE_Y / NUM_THREADS_PER_WARP_Y) + thread_linear_row_idx_in_warp * THREAD_TILE_SIZE_Y};
+                size_t const A_thread_block_tile_row_idx{warp_row_idx * WARP_TILE_SIZE_Y + thread_tile_repeat_row_idx * (WARP_TILE_SIZE_Y / NUM_THREAD_TILES_PER_WARP_Y) + thread_linear_row_idx_in_warp * THREAD_TILE_SIZE_Y};
                 size_t const A_thread_block_tile_col_idx{k_i};
 
                 #pragma unroll
@@ -85,7 +87,7 @@ __global__ void two_dim_tiling_two_dim_warp_tiling_two_dim_thread_matrix_transpo
             for(size_t thread_tile_repeat_col_idx{0U}; thread_tile_repeat_col_idx < NUM_THREAD_TILES_PER_WARP_X; ++thread_tile_repeat_col_idx)
             {
                 size_t const B_thread_block_tile_row_idx{k_i};
-                size_t const B_thread_block_tile_col_idx{warp_col_idx * WARP_TILE_SIZE_X + thread_tile_repeat_col_idx * (WARP_TILE_SIZE_X / NUM_THREADS_PER_WARP_X) + thread_linear_col_idx_in_warp * THREAD_TILE_SIZE_X};
+                size_t const B_thread_block_tile_col_idx{warp_col_idx * WARP_TILE_SIZE_X + thread_tile_repeat_col_idx * (WARP_TILE_SIZE_X / NUM_THREAD_TILES_PER_WARP_X) + thread_linear_col_idx_in_warp * THREAD_TILE_SIZE_X};
 
                 #pragma unroll
                 for(size_t thread_tile_x_vector_idx{0U}; thread_tile_x_vector_idx < VECTORIZED_THREAD_TILE_SIZE_X; ++thread_tile_x_vector_idx)
@@ -139,7 +141,7 @@ __global__ void two_dim_tiling_two_dim_warp_tiling_two_dim_thread_matrix_transpo
                             reinterpret_cast<T*>(&C_vals)[i] = alpha * C_thread_results[thread_tile_repeat_row_idx][thread_tile_repeat_col_idx][thread_tile_y_idx][thread_tile_x_vector_idx * NUM_VECTOR_UNITS + i] + beta * reinterpret_cast<T const*>(&C_vals)[i];
                         }
                         // vec write to C
-                        reinterpret_cast<int4*>(&C[C_row_idx * ldc + C_col_idx]) = C_vals;
+                        *reinterpret_cast<int4*>(&C[C_row_idx * ldc + C_col_idx]) = C_vals;
                     }
                 }
             }
